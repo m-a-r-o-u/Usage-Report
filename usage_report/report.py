@@ -73,7 +73,8 @@ def create_report(user_id: str, start: str, end: str | None = None, *, netrc_fil
     user_data = _normalize_user_data(api.fetch_user(user_id))
     usage = fetch_usage(user_id, start, end)
     groups = list_user_groups(user_id)
-    ai_c_group = next((g for g in groups if g.endswith("ai-c")), "")
+    ai_c_groups = [g for g in groups if g.endswith("ai-c")]
+    ai_c_group = "|".join(ai_c_groups) if ai_c_groups else ""
 
     report = {
         "first_name": user_data.get("first_name")

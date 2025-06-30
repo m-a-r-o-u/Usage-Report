@@ -46,6 +46,32 @@ def test_create_report(tmp_path):
     assert report["ai_c_group"] == "project-ai-c"
 
 
+def test_create_report_multiple_ai_c(tmp_path):
+    user_info = {
+        "kennung": "mm123",
+        "projekt": "proj",
+        "daten": {
+            "vorname": "Max",
+            "nachname": "Mustermann",
+            "emailadressen": [
+                {"adresse": "max.mustermann@example.com"}
+            ],
+        },
+    }
+    usage = {"cpu_hours": 1.0, "gpu_hours": 0.5, "ram_gb_hours": 2.0}
+
+    with mock.patch("usage_report.report.SimAPI") as MockAPI:
+        api_instance = MockAPI.return_value
+        api_instance.fetch_user.return_value = user_info
+        with mock.patch("usage_report.report.fetch_usage", return_value=usage):
+            with mock.patch(
+                "usage_report.report.list_user_groups",
+                return_value=["a-ai-c", "b-ai-c"],
+            ):
+                report = create_report("mm123", "2025-01-01")
+    assert report["ai_c_group"] == "a-ai-c|b-ai-c"
+
+
 def test_write_report_csv_append(tmp_path):
     row1 = {"first_name": "A", "last_name": "B"}
     csv_path = write_report_csv(row1, tmp_path, "out.csv", start="2025-01-01")
