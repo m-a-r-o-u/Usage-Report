@@ -72,7 +72,13 @@ def main(argv: list[str] | None = None) -> int:
         except SimAPIError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
-        output_path = write_report_csv(report, "output", f"{args.user_id}.csv")
+        output_path = write_report_csv(
+            report,
+            "output",
+            f"{args.user_id}.csv",
+            start=args.start,
+            end=args.end,
+        )
         pprint(report)
         print(f"Report written to {output_path}")
     return 0

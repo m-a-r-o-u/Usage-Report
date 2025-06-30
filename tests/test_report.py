@@ -38,7 +38,17 @@ def test_create_report(tmp_path):
         with mock.patch("usage_report.report.fetch_usage", return_value=usage):
             report = create_report("mm123", "2025-01-01")
     assert report["email"] == "max.mustermann@example.com"
-    csv_path = write_report_csv(report, tmp_path, "out.csv")
+    csv_path = write_report_csv(report, tmp_path, "out.csv", start="2025-01-01")
     assert csv_path.exists()
     content = csv_path.read_text()
     assert "first_name,last_name" in content
+
+
+def test_write_report_csv_append(tmp_path):
+    row1 = {"first_name": "A", "last_name": "B"}
+    csv_path = write_report_csv(row1, tmp_path, "out.csv", start="2025-01-01")
+    row2 = {"first_name": "C", "last_name": "D"}
+    csv_path = write_report_csv(row2, tmp_path, "out.csv", start="2025-02-01")
+    lines = csv_path.read_text().splitlines()
+    assert len(lines) == 3
+    assert "timestamp" in lines[0]
