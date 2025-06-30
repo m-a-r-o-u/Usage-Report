@@ -16,4 +16,7 @@ usage-report api <user_id> [--netrc-file PATH]
 
 # aggregate Slurm usage
 usage-report slurm <user_id> -S 2025-06-27 [-E 2025-07-01]
+
+# combined report
+usage-report report <user_id> -S 2025-06-27 [-E 2025-07-01] [--netrc-file PATH]
 ```
