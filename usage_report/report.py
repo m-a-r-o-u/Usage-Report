@@ -7,6 +7,7 @@ from datetime import datetime
 
 from .api import SimAPI
 from .slurm import fetch_usage
+from .groups import list_user_groups
 
 
 def _normalize_user_data(data: dict[str, object]) -> dict[str, object]:
@@ -71,6 +72,8 @@ def create_report(user_id: str, start: str, end: str | None = None, *, netrc_fil
     api = SimAPI(netrc_file=netrc_file)
     user_data = _normalize_user_data(api.fetch_user(user_id))
     usage = fetch_usage(user_id, start, end)
+    groups = list_user_groups(user_id)
+    ai_c_group = next((g for g in groups if g.endswith("ai-c")), "")
 
     report = {
         "first_name": user_data.get("first_name")
@@ -82,6 +85,7 @@ def create_report(user_id: str, start: str, end: str | None = None, *, netrc_fil
         "email": _pick_email(user_data),
         "kennung": user_data.get("kennung"),
         "projekt": user_data.get("projekt"),
+        "ai_c_group": ai_c_group,
     }
     report.update(usage)
     return report

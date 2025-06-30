@@ -36,12 +36,14 @@ def test_create_report(tmp_path):
         api_instance = MockAPI.return_value
         api_instance.fetch_user.return_value = user_info
         with mock.patch("usage_report.report.fetch_usage", return_value=usage):
-            report = create_report("mm123", "2025-01-01")
+            with mock.patch("usage_report.report.list_user_groups", return_value=["users", "project-ai-c", "other"]):
+                report = create_report("mm123", "2025-01-01")
     assert report["email"] == "max.mustermann@example.com"
     csv_path = write_report_csv(report, tmp_path, "out.csv", start="2025-01-01")
     assert csv_path.exists()
     content = csv_path.read_text()
     assert "first_name,last_name" in content
+    assert report["ai_c_group"] == "project-ai-c"
 
 
 def test_write_report_csv_append(tmp_path):
