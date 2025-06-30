@@ -8,20 +8,27 @@ from usage_report.report import create_report, _pick_email, write_report_csv
 
 def test_pick_email_preferred():
     data = {
-        "first_name": "Max",
-        "last_name": "Mustermann",
-        "emails": ["max.mustermann@example.com", "other@example.com"],
+        "vorname": "Max",
+        "nachname": "Mustermann",
+        "emailadressen": [
+            {"adresse": "max.mustermann@example.com"},
+            {"adresse": "other@example.com"},
+        ],
     }
     assert _pick_email(data) == "max.mustermann@example.com"
 
 
 def test_create_report(tmp_path):
     user_info = {
-        "first_name": "Max",
-        "last_name": "Mustermann",
         "kennung": "mm123",
         "projekt": "proj",
-        "emails": ["max.mustermann@example.com"],
+        "daten": {
+            "vorname": "Max",
+            "nachname": "Mustermann",
+            "emailadressen": [
+                {"adresse": "max.mustermann@example.com"}
+            ],
+        },
     }
     usage = {"cpu_hours": 1.0, "gpu_hours": 0.5, "ram_gb_hours": 2.0}
 
