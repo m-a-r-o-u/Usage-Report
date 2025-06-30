@@ -79,7 +79,12 @@ def main(argv: list[str] | None = None) -> int:
             start=args.start,
             end=args.end,
         )
-        pprint(report)
+
+        report_with_period = report.copy()
+        report_with_period["period_start"] = args.start
+        report_with_period["period_end"] = args.end
+
+        pprint(report_with_period)
         print(f"Report written to {output_path}")
     return 0
 
