@@ -6,28 +6,47 @@ import sys
 from pprint import pprint
 
 from .api import SimAPI, SimAPIError
+from .slurm import fetch_usage
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Fetch user information from LRZ SIM API")
-    parser.add_argument("user_id", help="LRZ user identifier")
-    parser.add_argument(
+def _add_api_parser(sub: argparse._SubParsersAction) -> None:
+    api_parser = sub.add_parser("api", help="Fetch LRZ SIM API user info")
+    api_parser.add_argument("user_id", help="LRZ user identifier")
+    api_parser.add_argument(
         "--netrc-file",
         dest="netrc_file",
         help="Custom path to .netrc file for authentication",
     )
+
+
+def _add_slurm_parser(sub: argparse._SubParsersAction) -> None:
+    slurm_parser = sub.add_parser("slurm", help="Calculate Slurm usage")
+    slurm_parser.add_argument("user_id", help="LRZ user identifier")
+    slurm_parser.add_argument("-S", "--start", required=True, help="Start date YYYY-MM-DD")
+    slurm_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Usage reporting utilities")
+    sub = parser.add_subparsers(dest="command", required=True)
+    _add_api_parser(sub)
+    _add_slurm_parser(sub)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    api = SimAPI(netrc_file=args.netrc_file)
-    try:
-        data = api.fetch_user(args.user_id)
-    except SimAPIError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
-    pprint(data)
+    if args.command == "api":
+        api = SimAPI(netrc_file=args.netrc_file)
+        try:
+            data = api.fetch_user(args.user_id)
+        except SimAPIError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        pprint(data)
+    elif args.command == "slurm":
+        usage = fetch_usage(args.user_id, args.start, args.end)
+        pprint(usage)
     return 0
 
 

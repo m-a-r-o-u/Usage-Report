@@ -1,6 +1,6 @@
 # Usage Report
 
-Utilities to fetch information from the LRZ SIM API.
+Utilities to fetch information from the LRZ SIM API and to calculate Slurm usage statistics.
 
 ## Installation
 
@@ -11,5 +11,9 @@ pip install -e .
 ## Command line usage
 
 ```bash
-usage-report <user_id> [--netrc-file PATH]
+# fetch information from the SIM API
+usage-report api <user_id> [--netrc-file PATH]
+
+# aggregate Slurm usage
+usage-report slurm <user_id> -S 2025-06-27 [-E 2025-07-01]
 ```
