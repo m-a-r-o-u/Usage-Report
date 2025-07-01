@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
+from .sreport import fetch_active_usage
 from .report import create_report, write_report_csv
 
 
@@ -70,12 +71,31 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
     )
 
 
+def _add_active_parser(sub: argparse._SubParsersAction) -> None:
+    active_parser = sub.add_parser(
+        "active", help="Calculate usage for active users via sreport"
+    )
+    grp = active_parser.add_mutually_exclusive_group(required=True)
+    grp.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
+    grp.add_argument("--month", help="Month YYYY-MM")
+    active_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
+    active_parser.add_argument(
+        "-u",
+        "--user",
+        dest="active_users",
+        action="append",
+        required=True,
+        help="Active user identifier (can be used multiple times)",
+    )
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Usage reporting utilities")
     sub = parser.add_subparsers(dest="command", required=True)
     _add_api_parser(sub)
     _add_slurm_parser(sub)
     _add_report_parser(sub)
+    _add_active_parser(sub)
     return parser.parse_args(argv)
 
 
@@ -98,6 +118,16 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             start, end = expand_month(args.month)
         usage = fetch_usage(args.user_id, start, end, partitions=args.partitions)
+        pprint(usage)
+    elif args.command == "active":
+        start = args.start
+        end = args.end
+        if args.month:
+            if args.end:
+                print("--end cannot be used with --month", file=sys.stderr)
+                return 1
+            start, end = expand_month(args.month)
+        usage = fetch_active_usage(start, end, active_users=args.active_users)
         pprint(usage)
     elif args.command == "report":
         start = args.start
