@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import subprocess
 from typing import Iterable, Dict
+import fnmatch
 
 
 def parse_elapsed(elapsed: str) -> float:
@@ -50,7 +51,13 @@ def parse_sacct_output(text: str) -> Iterable[Dict[str, str]]:
         yield dict(zip(header, values))
 
 
-def fetch_usage(user: str, start: str, end: str | None = None) -> dict[str, float]:
+def fetch_usage(
+    user: str,
+    start: str,
+    end: str | None = None,
+    *,
+    partitions: Iterable[str] | None = None,
+) -> dict[str, float]:
     """Return aggregated GPU/CPU/RAM hours for *user* between *start* and *end*.
 
     Parameters
@@ -66,7 +73,7 @@ def fetch_usage(user: str, start: str, end: str | None = None) -> dict[str, floa
         "sacct",
         "-u",
         user,
-        "--format=JobID,Elapsed,NCPUS,AllocTRES",
+        "--format=JobID,Partition,Elapsed,NCPUS,AllocTRES",
         "--parsable2",
         "-S",
         start,
@@ -81,6 +88,10 @@ def fetch_usage(user: str, start: str, end: str | None = None) -> dict[str, floa
         if "." in job_id:
             # skip job steps to avoid double counting
             continue
+        if partitions:
+            part = rec.get("Partition", "")
+            if not any(fnmatch.fnmatch(part, pat) for pat in partitions):
+                continue
         elapsed_h = parse_elapsed(rec.get("Elapsed", "0:0:0"))
         cpus = int(rec.get("NCPUS", "0"))
         tres = parse_tres(rec.get("AllocTRES", ""))

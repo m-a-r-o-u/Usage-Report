@@ -39,6 +39,13 @@ def _add_slurm_parser(sub: argparse._SubParsersAction) -> None:
     grp.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
     grp.add_argument("--month", help="Month YYYY-MM")
     slurm_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
+    slurm_parser.add_argument(
+        "-p",
+        "--partition",
+        dest="partitions",
+        action="append",
+        help="Partition to include (can be used multiple times, supports wildcards)",
+    )
 
 
 def _add_report_parser(sub: argparse._SubParsersAction) -> None:
@@ -52,6 +59,13 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         "--netrc-file",
         dest="netrc_file",
         help="Custom path to .netrc file for authentication",
+    )
+    report_parser.add_argument(
+        "-p",
+        "--partition",
+        dest="partitions",
+        action="append",
+        help="Partition to include (can be used multiple times, supports wildcards)",
     )
 
 
@@ -82,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("--end cannot be used with --month", file=sys.stderr)
                 return 1
             start, end = expand_month(args.month)
-        usage = fetch_usage(args.user_id, start, end)
+        usage = fetch_usage(args.user_id, start, end, partitions=args.partitions)
         pprint(usage)
     elif args.command == "report":
         start = args.start
@@ -97,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.user_id,
                 start,
                 end,
+                partitions=args.partitions,
                 netrc_file=args.netrc_file,
             )
         except SimAPIError as exc:
