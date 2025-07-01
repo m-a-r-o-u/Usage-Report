@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
@@ -19,7 +19,8 @@ def expand_month(month: str) -> tuple[str, str]:
         next_month = dt.replace(year=dt.year + 1, month=1, day=1)
     else:
         next_month = dt.replace(month=dt.month + 1, day=1)
-    return start.strftime("%Y-%m-%d"), next_month.strftime("%Y-%m-%d")
+    last_day = next_month - timedelta(days=1)
+    return start.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
 
 
 def _add_api_parser(sub: argparse._SubParsersAction) -> None:
