@@ -24,5 +24,12 @@ def test_fetch_active_usage():
     """
     mocked_proc = mock.Mock(stdout=sample_output)
     with mock.patch("subprocess.run", return_value=mocked_proc):
-        usage = fetch_active_usage("2025-06-01", "2025-06-30", active_users=["user1", "user2"])
-    assert usage == {"user1": 10.0, "user2": 5.0}
+        usage = fetch_active_usage(
+            "2025-06-01",
+            "2025-06-30",
+            active_users=["user1", "user2"],
+            partitions=["gpu"],
+        )
+    assert usage["partitions"] == ["gpu"]
+    assert usage["user1"] == 10.0
+    assert usage["user2"] == 5.0
