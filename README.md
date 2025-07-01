@@ -18,9 +18,16 @@ usage-report api <user_id> [--netrc-file PATH]
 usage-report slurm <user_id> -S 2025-06-27 [-E 2025-06-30]
 # or entire month
 usage-report slurm <user_id> --month 2025-06
+# filter by partition (can be used multiple times, supports wildcards)
+usage-report slurm <user_id> --month 2025-06 \
+    --partition lrz* --partition mcml*
+# quote wildcards to prevent shell expansion if needed
+# usage-report slurm <user_id> --month 2025-06 \
+#     --partition 'lrz*' --partition 'mcml*'
 
 # combined report
 usage-report report <user_id> -S 2025-06-27 [-E 2025-06-30] [--netrc-file PATH]
 # or for a whole month
 usage-report report <user_id> --month 2025-06 [--netrc-file PATH]
+    --partition lrz* --partition mcml*
 ```
