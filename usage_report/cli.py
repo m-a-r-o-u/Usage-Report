@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
 from .sreport import fetch_active_usage
+from .database import store_month, list_months, load_month
 from .report import create_report, write_report_csv
 
 
@@ -51,23 +52,51 @@ def _add_slurm_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_report_parser(sub: argparse._SubParsersAction) -> None:
-    report_parser = sub.add_parser("report", help="Generate combined report")
-    report_parser.add_argument("user_id", help="LRZ user identifier")
-    grp = report_parser.add_mutually_exclusive_group(required=True)
-    grp.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
-    grp.add_argument("--month", help="Month YYYY-MM")
-    report_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
-    report_parser.add_argument(
+    report_parser = sub.add_parser("report", help="Generate reports")
+    rep_sub = report_parser.add_subparsers(dest="report_cmd", required=True)
+
+    user_parser = rep_sub.add_parser("user", help="Generate combined report for a user")
+    user_parser.add_argument("user_id", help="LRZ user identifier")
+    grp_u = user_parser.add_mutually_exclusive_group(required=True)
+    grp_u.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
+    grp_u.add_argument("--month", help="Month YYYY-MM")
+    user_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
+    user_parser.add_argument(
         "--netrc-file",
         dest="netrc_file",
         help="Custom path to .netrc file for authentication",
     )
-    report_parser.add_argument(
+    user_parser.add_argument(
         "-p",
         "--partition",
         dest="partitions",
         action="append",
         help="Partition to include (can be used multiple times, supports wildcards)",
+    )
+
+    active_parser = rep_sub.add_parser("active", help="Usage report for active users")
+    grp_a = active_parser.add_mutually_exclusive_group(required=True)
+    grp_a.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
+    grp_a.add_argument("--month", help="Month YYYY-MM")
+    active_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
+    active_parser.add_argument(
+        "-p",
+        "--partition",
+        dest="partitions",
+        action="append",
+        help="Partition to include (can be used multiple times, supports wildcards)",
+    )
+
+    list_parser = rep_sub.add_parser("list", help="List stored monthly usage data")
+
+    show_parser = rep_sub.add_parser("show", help="Show stored monthly usage")
+    show_parser.add_argument("month", help="Month YYYY-MM")
+    show_parser.add_argument(
+        "-p",
+        "--partition",
+        dest="partitions",
+        action="append",
+        help="Partition filter used during storage",
     )
 
 
@@ -84,8 +113,14 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
         "--user",
         dest="active_users",
         action="append",
-        required=True,
         help="Active user identifier (can be used multiple times)",
+    )
+    active_parser.add_argument(
+        "-p",
+        "--partition",
+        dest="partitions",
+        action="append",
+        help="Partition to include (can be used multiple times, supports wildcards)",
     )
 
 
@@ -127,41 +162,66 @@ def main(argv: list[str] | None = None) -> int:
                 print("--end cannot be used with --month", file=sys.stderr)
                 return 1
             start, end = expand_month(args.month)
-        usage = fetch_active_usage(start, end, active_users=args.active_users)
+        usage = fetch_active_usage(start, end, active_users=args.active_users, partitions=args.partitions)
         pprint(usage)
     elif args.command == "report":
-        start = args.start
-        end = args.end
-        if args.month:
-            if args.end:
-                print("--end cannot be used with --month", file=sys.stderr)
+        if args.report_cmd == "user":
+            start = args.start
+            end = args.end
+            if args.month:
+                if args.end:
+                    print("--end cannot be used with --month", file=sys.stderr)
+                    return 1
+                start, end = expand_month(args.month)
+            try:
+                report = create_report(
+                    args.user_id,
+                    start,
+                    end,
+                    partitions=args.partitions,
+                    netrc_file=args.netrc_file,
+                )
+            except SimAPIError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
                 return 1
-            start, end = expand_month(args.month)
-        try:
-            report = create_report(
-                args.user_id,
-                start,
-                end,
-                partitions=args.partitions,
-                netrc_file=args.netrc_file,
+            output_path = write_report_csv(
+                report,
+                "output",
+                f"{args.user_id}.csv",
+                start=start,
+                end=end,
             )
-        except SimAPIError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            return 1
-        output_path = write_report_csv(
-            report,
-            "output",
-            f"{args.user_id}.csv",
-            start=start,
-            end=end,
-        )
 
-        report_with_period = report.copy()
-        report_with_period["period_start"] = start
-        report_with_period["period_end"] = end
+            report_with_period = report.copy()
+            report_with_period["period_start"] = start
+            report_with_period["period_end"] = end
 
-        pprint(report_with_period)
-        print(f"Report written to {output_path}")
+            pprint(report_with_period)
+            print(f"Report written to {output_path}")
+        elif args.report_cmd == "active":
+            start = args.start
+            end = args.end
+            if args.month:
+                if args.end:
+                    print("--end cannot be used with --month", file=sys.stderr)
+                    return 1
+                start, end = expand_month(args.month)
+            usage = fetch_active_usage(start, end, partitions=args.partitions)
+            pprint(usage)
+            if args.month:
+                store_month(
+                    args.month,
+                    start,
+                    end or "",
+                    {k: v for k, v in usage.items() if k != "partitions"},
+                    partitions=args.partitions,
+                )
+        elif args.report_cmd == "list":
+            entries = list_months()
+            pprint(entries)
+        elif args.report_cmd == "show":
+            usage = load_month(args.month, partitions=args.partitions)
+            pprint(usage if usage is not None else {})
     return 0
 
 

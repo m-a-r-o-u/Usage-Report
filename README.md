@@ -26,11 +26,15 @@ usage-report slurm <user_id> --month 2025-06 \
 #     --partition 'lrz*' --partition 'mcml*'
 
 # cluster usage for active users
-usage-report active --month 2025-06 -u user1 -u user2
+usage-report report active -S 2025-06-27 [-E 2025-06-30]
 
 # combined report
 usage-report report <user_id> -S 2025-06-27 [-E 2025-06-30] [--netrc-file PATH]
 # or for a whole month
 usage-report report <user_id> --month 2025-06 [--netrc-file PATH]
     --partition lrz* --partition mcml*
+# list stored monthly data
+usage-report report list
+# show stored month
+usage-report report show 2025-06
 ```

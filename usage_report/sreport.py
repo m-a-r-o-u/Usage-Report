@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Iterable, Dict
+from typing import Iterable, Dict, Optional
 
 
 def parse_sreport_output(text: str) -> Dict[str, float]:
@@ -27,8 +27,9 @@ def fetch_active_usage(
     start: str,
     end: str | None = None,
     *,
-    active_users: Iterable[str],
-) -> Dict[str, float]:
+    active_users: Optional[Iterable[str]] = None,
+    partitions: Iterable[str] | None = None,
+) -> Dict[str, object]:
     """Return usage hours for ``active_users`` between ``start`` and ``end``.
 
     Parameters
@@ -38,7 +39,11 @@ def fetch_active_usage(
     end:
         Optional end date in ``YYYY-MM-DD`` format.
     active_users:
-        Iterable of user identifiers to include.
+        Iterable of user identifiers to include. If ``None`` all users are
+        returned.
+    partitions:
+        Iterable of partitions to include. Only stored in the result for
+        reference.
     """
     cmd = [
         "sreport",
@@ -48,10 +53,17 @@ def fetch_active_usage(
     ]
     if end:
         cmd.append(f"end={end}")
+    if partitions:
+        for part in partitions:
+            cmd.append(f"partition={part}")
     cmd.append("format=Login,Used")
     proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
     usage = parse_sreport_output(proc.stdout)
-    return {u: usage.get(u, 0.0) for u in active_users}
+    if active_users is not None:
+        usage = {u: usage.get(u, 0.0) for u in active_users}
+    result: Dict[str, object] = {"partitions": list(partitions or [])}
+    result.update(usage)
+    return result
 
 
 __all__ = ["fetch_active_usage", "parse_sreport_output"]
