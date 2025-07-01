@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 import csv
 from datetime import datetime
+from typing import Iterable
 
 from .api import SimAPI
 from .slurm import fetch_usage
@@ -67,11 +68,18 @@ def _pick_email(data: dict[str, object]) -> str:
     return ""
 
 
-def create_report(user_id: str, start: str, end: str | None = None, *, netrc_file: str | Path | None = None) -> dict[str, object]:
+def create_report(
+    user_id: str,
+    start: str,
+    end: str | None = None,
+    *,
+    partitions: Iterable[str] | None = None,
+    netrc_file: str | Path | None = None,
+) -> dict[str, object]:
     """Return a combined report dictionary for *user_id*."""
     api = SimAPI(netrc_file=netrc_file)
     user_data = _normalize_user_data(api.fetch_user(user_id))
-    usage = fetch_usage(user_id, start, end)
+    usage = fetch_usage(user_id, start, end, partitions=partitions)
     groups = list_user_groups(user_id)
     ai_c_groups = [g for g in groups if g.endswith("ai-c")]
     ai_c_group = "|".join(ai_c_groups) if ai_c_groups else ""
