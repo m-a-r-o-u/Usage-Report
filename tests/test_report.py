@@ -6,6 +6,7 @@ from unittest import mock
 from usage_report.report import (
     create_report,
     create_active_reports,
+    enrich_report_rows,
     _pick_email,
     write_report_csv,
 )
@@ -111,3 +112,29 @@ def test_create_active_reports():
     assert {call.args[0] for call in cr.call_args_list} == {"user1", "user2"}
     assert all("timestamp" in r for r in rows)
     assert all(r["period_start"] == "2025-06-01" for r in rows)
+
+
+def test_enrich_report_rows():
+    rows = [{"kennung": "user1", "cpu_hours": 1.0}]
+    user_info = {
+        "kennung": "user1",
+        "projekt": "proj",
+        "daten": {
+            "vorname": "Max",
+            "nachname": "Mustermann",
+            "emailadressen": [{"adresse": "max@example.com"}],
+        },
+    }
+    with mock.patch("usage_report.report.SimAPI") as MockAPI:
+        api_inst = MockAPI.return_value
+        api_inst.fetch_user.return_value = user_info
+        with mock.patch(
+            "usage_report.report.list_user_groups",
+            return_value=["test-ai-c"],
+        ):
+            result = enrich_report_rows(rows)
+    assert result[0]["first_name"] == "Max"
+    assert result[0]["last_name"] == "Mustermann"
+    assert result[0]["email"] == "max@example.com"
+    assert result[0]["projekt"] == "proj"
+    assert result[0]["ai_c_group"] == "test-ai-c"
