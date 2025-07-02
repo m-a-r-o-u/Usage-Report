@@ -10,7 +10,7 @@ from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
 from .sreport import fetch_active_usage
 from .database import store_month, list_months, load_month
-from .report import create_report, write_report_csv
+from .report import create_report, create_active_reports, write_report_csv
 
 
 def expand_month(month: str) -> tuple[str, str]:
@@ -280,20 +280,12 @@ def main(argv: list[str] | None = None) -> int:
                 for row in rows:
                     print_report_table(row)
             else:
-                active = fetch_active_usage(start, end, partitions=args.partitions)
-                user_ids = [u for u in active if u != "partitions"]
-                rows = []
-                for user in user_ids:
-                    report = create_report(
-                        user,
-                        start,
-                        end,
-                        partitions=args.partitions,
-                    )
-                    report["period_start"] = start
-                    report["period_end"] = end
-                    report["timestamp"] = datetime.now().isoformat(timespec="seconds")
-                    rows.append(report)
+                rows = create_active_reports(
+                    start,
+                    end,
+                    partitions=args.partitions,
+                )
+                for report in rows:
                     print_report_table(report)
 
                 if args.month:
