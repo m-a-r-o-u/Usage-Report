@@ -282,6 +282,23 @@ def main(argv: list[str] | None = None) -> int:
                 existing = load_month(args.month, partitions=args.partitions)
             if existing is not None:
                 rows = list(existing)
+                sample = rows[0] if rows else {}
+                if not isinstance(sample, dict) or "kennung" not in sample:
+                    rows = create_active_reports(
+                        start,
+                        end,
+                        partitions=args.partitions,
+                    )
+                    if args.month:
+                        store_month(
+                            args.month,
+                            start,
+                            end or "",
+                            rows,
+                            partitions=args.partitions,
+                        )
+                else:
+                    rows = enrich_report_rows(rows)
                 for row in rows:
                     print_report_table(row)
             else:

@@ -24,3 +24,18 @@ def test_report_user_alias():
     assert args.report_cmd == "user"
     assert args.user_id == "di38qex"
     assert args.month == "2025-06"
+
+
+def test_report_active_legacy(monkeypatch):
+    from usage_report import cli
+    legacy = [{"user1": 1.0}]
+    monkeypatch.setattr(cli, "load_month", lambda month, partitions=None: legacy)
+    called = {}
+    def fake_create(start, end, partitions=None):
+        called['yes'] = True
+        return [{"kennung": "u1"}]
+    monkeypatch.setattr(cli, "create_active_reports", fake_create)
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "print_report_table", lambda row: None)
+    cli.main(["report", "active", "--month", "2025-06"])
+    assert called.get('yes')
