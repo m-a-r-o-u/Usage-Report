@@ -12,7 +12,7 @@ pip install -e .
 
 ```bash
 # fetch information from the SIM API
-usage api <user_id> [--netrc-file PATH]
+usage sim <user_id> [--netrc-file PATH]
 
 # aggregate Slurm usage
 usage slurm <user_id> -S 2025-06-27 [-E 2025-06-30]
@@ -36,5 +36,5 @@ usage report <user_id> --month 2025-06 [--netrc-file PATH]
 # list stored monthly data
 usage report list
 # show stored month
-usage report show 2025-06
+usage report show --month 2025-06
 ```

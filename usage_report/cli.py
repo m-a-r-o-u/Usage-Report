@@ -43,10 +43,10 @@ def print_usage_table(usage: dict[str, float]) -> None:
         print(f"{user:<{user_width}} {hours:>{hours_width}.1f}")
 
 
-def _add_api_parser(sub: argparse._SubParsersAction) -> None:
-    api_parser = sub.add_parser("api", help="Fetch LRZ SIM API user info")
-    api_parser.add_argument("user_id", help="LRZ user identifier")
-    api_parser.add_argument(
+def _add_sim_parser(sub: argparse._SubParsersAction) -> None:
+    sim_parser = sub.add_parser("sim", help="Fetch LRZ SIM API user info")
+    sim_parser.add_argument("user_id", help="LRZ user identifier")
+    sim_parser.add_argument(
         "--netrc-file",
         dest="netrc_file",
         help="Custom path to .netrc file for authentication",
@@ -108,7 +108,7 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
     list_parser = rep_sub.add_parser("list", help="List stored monthly usage data")
 
     show_parser = rep_sub.add_parser("show", help="Show stored monthly usage")
-    show_parser.add_argument("month", help="Month YYYY-MM")
+    show_parser.add_argument("--month", required=True, help="Month YYYY-MM")
     show_parser.add_argument(
         "-p",
         "--partition",
@@ -145,7 +145,7 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Usage reporting utilities")
     sub = parser.add_subparsers(dest="command", required=True)
-    _add_api_parser(sub)
+    _add_sim_parser(sub)
     _add_slurm_parser(sub)
     _add_report_parser(sub)
     _add_active_parser(sub)
@@ -154,7 +154,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    if args.command == "api":
+    if args.command == "sim":
         api = SimAPI(netrc_file=args.netrc_file)
         try:
             data = api.fetch_user(args.user_id)
