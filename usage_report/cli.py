@@ -277,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
                 existing = load_month(args.month, partitions=args.partitions)
             if existing is not None:
                 rows = list(existing)
+                for row in rows:
+                    print_report_table(row)
             else:
                 active = fetch_active_usage(start, end, partitions=args.partitions)
                 user_ids = [u for u in active if u != "partitions"]
@@ -292,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
                     report["period_end"] = end
                     report["timestamp"] = datetime.now().isoformat(timespec="seconds")
                     rows.append(report)
+                    print_report_table(report)
 
                 if args.month:
                     store_month(
@@ -301,7 +304,6 @@ def main(argv: list[str] | None = None) -> int:
                         rows,
                         partitions=args.partitions,
                     )
-            pprint(rows)
         elif args.report_cmd == "list":
             entries = list_months()
             pprint(entries)
