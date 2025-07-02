@@ -11,8 +11,8 @@ pip install -e .
 ## Command line usage
 
 ```bash
-# enable debug logging
-usage --debug <command> [options]
+# enable debug logging (option can be placed anywhere)
+usage [--debug] <command> [options]
 
 # fetch information from the SIM API
 usage sim <user_id> [--netrc-file PATH]

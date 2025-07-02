@@ -198,6 +198,10 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     argv_list = list(argv) if argv is not None else sys.argv[1:]
+    debug = False
+    while "--debug" in argv_list:
+        argv_list.remove("--debug")
+        debug = True
     if argv_list and argv_list[0] == "report":
         if (
             len(argv_list) > 1
@@ -217,7 +221,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_slurm_parser(sub)
     _add_report_parser(sub)
     _add_active_parser(sub)
-    return parser.parse_args(argv_list)
+    args = parser.parse_args(argv_list)
+    if debug:
+        args.debug = True
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
