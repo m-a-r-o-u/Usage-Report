@@ -148,13 +148,22 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    argv_list = list(argv) if argv is not None else sys.argv[1:]
+    if argv_list and argv_list[0] == "report":
+        if (
+            len(argv_list) > 1
+            and not argv_list[1].startswith("-")
+            and argv_list[1] not in {"user", "active", "list", "show"}
+        ):
+            argv_list.insert(1, "user")
+
     parser = argparse.ArgumentParser(description="Usage reporting utilities")
     sub = parser.add_subparsers(dest="command", required=True)
     _add_sim_parser(sub)
     _add_slurm_parser(sub)
     _add_report_parser(sub)
     _add_active_parser(sub)
-    return parser.parse_args(argv)
+    return parser.parse_args(argv_list)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -237,7 +246,13 @@ def main(argv: list[str] | None = None) -> int:
                 usage = {"partitions": list(args.partitions or [])}
                 usage.update(existing)
             else:
-                usage = fetch_active_usage(start, end, partitions=args.partitions)
+                active = fetch_active_usage(start, end, partitions=args.partitions)
+                user_ids = [u for u in active if u != "partitions"]
+                usage = {"partitions": list(args.partitions or [])}
+                for user in user_ids:
+                    data = fetch_usage(user, start, end, partitions=args.partitions)
+                    usage[user] = data.get("cpu_hours", 0.0)
+
                 if args.month:
                     store_month(
                         args.month,
