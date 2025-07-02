@@ -31,7 +31,7 @@ def test_report_active_legacy(monkeypatch):
     legacy = [{"user1": 1.0}]
     monkeypatch.setattr(cli, "load_month", lambda month, partitions=None: legacy)
     called = {}
-    def fake_create(start, end, partitions=None):
+    def fake_create(start, end, partitions=None, netrc_file=None):
         called['yes'] = True
         return [{"kennung": "u1"}]
     monkeypatch.setattr(cli, "create_active_reports", fake_create)
@@ -39,3 +39,21 @@ def test_report_active_legacy(monkeypatch):
     monkeypatch.setattr(cli, "print_report_table", lambda row: None)
     cli.main(["report", "active", "--month", "2025-06"])
     assert called.get('yes')
+
+
+def test_report_active_netrc(monkeypatch):
+    from usage_report import cli
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: None)
+    captured = {}
+
+    def fake_create(start, end, partitions=None, netrc_file=None):
+        captured["netrc"] = netrc_file
+        return []
+
+    monkeypatch.setattr(cli, "create_active_reports", fake_create)
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "print_report_table", lambda row: None)
+
+    cli.main(["report", "active", "--month", "2025-06", "--netrc-file", "creds"]) 
+    assert captured.get("netrc") == "creds"

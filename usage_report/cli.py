@@ -141,6 +141,11 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
     grp_a.add_argument("--month", help="Month YYYY-MM")
     active_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
     active_parser.add_argument(
+        "--netrc-file",
+        dest="netrc_file",
+        help="Custom path to .netrc file for authentication",
+    )
+    active_parser.add_argument(
         "-p",
         "--partition",
         dest="partitions",
@@ -158,6 +163,11 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         dest="partitions",
         action="append",
         help="Partition filter used during storage",
+    )
+    show_parser.add_argument(
+        "--netrc-file",
+        dest="netrc_file",
+        help="Custom path to .netrc file for authentication",
     )
 
 
@@ -288,6 +298,7 @@ def main(argv: list[str] | None = None) -> int:
                         start,
                         end,
                         partitions=args.partitions,
+                        netrc_file=args.netrc_file,
                     )
                     if args.month:
                         store_month(
@@ -298,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
                             partitions=args.partitions,
                         )
                 else:
-                    rows = enrich_report_rows(rows)
+                    rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
                 for row in rows:
                     print_report_table(row)
             else:
@@ -306,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
                     start,
                     end,
                     partitions=args.partitions,
+                    netrc_file=args.netrc_file,
                 )
                 for report in rows:
                     print_report_table(report)
@@ -342,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
                         print_usage_table([])
                     return 0
             usage = load_month(args.month, partitions=parts) or []
-            usage = enrich_report_rows(usage)
+            usage = enrich_report_rows(usage, netrc_file=args.netrc_file)
             match = next(
                 (e for e in entries if e["partitions"] == ",".join(sorted(parts or []))),
                 None,
