@@ -1,7 +1,7 @@
 import json
 import sqlite3
 from pathlib import Path
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, List
 
 
 DEFAULT_DB_PATH = Path("output/usage.db")
@@ -30,7 +30,7 @@ def store_month(
     month: str,
     start: str,
     end: str,
-    usage: Dict[str, float],
+    usage: Iterable[Dict[str, Any]],
     *,
     partitions: Iterable[str] | None = None,
     db_path: Path = DEFAULT_DB_PATH,
@@ -39,7 +39,7 @@ def store_month(
     init_db(db_path)
     conn = sqlite3.connect(db_path)
     parts = ",".join(sorted(partitions or []))
-    data = json.dumps(usage)
+    data = json.dumps(list(usage))
     conn.execute(
         "REPLACE INTO monthly_usage (month, start, end, partitions, data) VALUES (?, ?, ?, ?, ?)",
         (month, start, end, parts, data),
@@ -53,7 +53,7 @@ def load_month(
     *,
     partitions: Iterable[str] | None = None,
     db_path: Path = DEFAULT_DB_PATH,
-) -> Dict[str, float] | None:
+) -> List[Dict[str, Any]] | None:
     """Return stored usage for *month* or ``None`` if not found."""
     init_db(db_path)
     parts = ",".join(sorted(partitions or []))
