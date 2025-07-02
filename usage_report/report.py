@@ -107,11 +107,14 @@ def write_report_csv(
     *,
     start: str | None = None,
     end: str | None = None,
+    partitions: Iterable[str] | None = None,
 ) -> Path:
     """Write *report* to ``output_dir/filename`` and return the path.
 
     If the file already exists, the row is appended.  A ``timestamp`` as well
     as ``period_start`` and ``period_end`` columns are added automatically.
+    The ``partitions`` column records which partitions were included in the
+    calculation, joined by commas.
     """
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -121,6 +124,7 @@ def write_report_csv(
     row["timestamp"] = datetime.now().isoformat(timespec="seconds")
     row["period_start"] = start
     row["period_end"] = end or ""
+    row["partitions"] = ",".join(sorted(partitions or []))
 
     if out_path.exists():
         with out_path.open("r", newline="") as fh:

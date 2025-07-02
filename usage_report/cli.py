@@ -25,10 +25,15 @@ def expand_month(month: str) -> tuple[str, str]:
     return start.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
 
 
-def print_usage_table(usage: dict[str, float]) -> None:
+def print_usage_table(
+    usage: dict[str, float], *, start: str | None = None, end: str | None = None
+) -> None:
     """Print ``usage`` dictionary as a simple table."""
     partitions = usage.pop("partitions", None)
     items = sorted(usage.items())
+    if start or end:
+        period = f"{start or '?'} - {end or '?'}"
+        print(f"Period: {period}")
     if partitions:
         print(f"Partitions: {', '.join(partitions)}")
     if not items:
@@ -208,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"{args.user_id}.csv",
                 start=start,
                 end=end,
+                partitions=args.partitions,
             )
 
             report_with_period = report.copy()
@@ -224,22 +230,54 @@ def main(argv: list[str] | None = None) -> int:
                     print("--end cannot be used with --month", file=sys.stderr)
                     return 1
                 start, end = expand_month(args.month)
-            usage = fetch_active_usage(start, end, partitions=args.partitions)
-            pprint(usage)
+            existing = None
             if args.month:
-                store_month(
-                    args.month,
-                    start,
-                    end or "",
-                    {k: v for k, v in usage.items() if k != "partitions"},
-                    partitions=args.partitions,
-                )
+                existing = load_month(args.month, partitions=args.partitions)
+            if existing is not None:
+                usage = {"partitions": list(args.partitions or [])}
+                usage.update(existing)
+            else:
+                usage = fetch_active_usage(start, end, partitions=args.partitions)
+                if args.month:
+                    store_month(
+                        args.month,
+                        start,
+                        end or "",
+                        {k: v for k, v in usage.items() if k != "partitions"},
+                        partitions=args.partitions,
+                    )
+            pprint(usage)
         elif args.report_cmd == "list":
             entries = list_months()
             pprint(entries)
         elif args.report_cmd == "show":
-            usage = load_month(args.month, partitions=args.partitions) or {}
-            print_usage_table(dict(usage))
+            parts = args.partitions
+            entries = [e for e in list_months() if e["month"] == args.month]
+            if parts is None:
+                if len(entries) == 1:
+                    parts = entries[0]["partitions"].split(",") if entries[0]["partitions"] else []
+                elif len(entries) > 1:
+                    for ent in entries:
+                        data = load_month(
+                            args.month,
+                            partitions=ent["partitions"].split(",") if ent["partitions"] else [],
+                        ) or {}
+                        print_usage_table(
+                            dict(data),
+                            start=ent["start"],
+                            end=ent["end"],
+                        )
+                    if not entries:
+                        print_usage_table({})
+                    return 0
+            usage = load_month(args.month, partitions=parts) or {}
+            match = next(
+                (e for e in entries if e["partitions"] == ",".join(sorted(parts or []))),
+                None,
+            )
+            start = match["start"] if match else None
+            end = match["end"] if match else None
+            print_usage_table(dict(usage), start=start, end=end)
     return 0
 
 
