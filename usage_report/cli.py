@@ -10,7 +10,12 @@ from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
 from .sreport import fetch_active_usage
 from .database import store_month, list_months, load_month
-from .report import create_report, create_active_reports, write_report_csv
+from .report import (
+    create_report,
+    create_active_reports,
+    enrich_report_rows,
+    write_report_csv,
+)
 
 
 def expand_month(month: str) -> tuple[str, str]:
@@ -320,6 +325,7 @@ def main(argv: list[str] | None = None) -> int:
                         print_usage_table([])
                     return 0
             usage = load_month(args.month, partitions=parts) or []
+            usage = enrich_report_rows(usage)
             match = next(
                 (e for e in entries if e["partitions"] == ",".join(sorted(parts or []))),
                 None,

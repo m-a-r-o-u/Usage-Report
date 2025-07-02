@@ -6,7 +6,7 @@ import csv
 from datetime import datetime
 from typing import Iterable
 
-from .api import SimAPI
+from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
 from .groups import list_user_groups
 from .sreport import fetch_active_usage
@@ -131,6 +131,49 @@ def create_active_reports(
     return rows
 
 
+def enrich_report_rows(
+    rows: Iterable[dict[str, object]], *, netrc_file: str | Path | None = None
+) -> list[dict[str, object]]:
+    """Return ``rows`` with missing user information filled via SIM API."""
+
+    api = SimAPI(netrc_file=netrc_file)
+    enriched: list[dict[str, object]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            enriched.append(row)
+            continue
+        if all(row.get(key) for key in ("first_name", "last_name", "email", "projekt")):
+            enriched.append(row)
+            continue
+        user_id = row.get("kennung")
+        if not user_id:
+            enriched.append(row)
+            continue
+        try:
+            data = _normalize_user_data(api.fetch_user(str(user_id)))
+        except SimAPIError:
+            enriched.append(row)
+            continue
+        groups = list_user_groups(str(user_id))
+        ai_c_groups = [g for g in groups if g.endswith("ai-c")]
+        ai_c_group = "|".join(ai_c_groups) if ai_c_groups else ""
+
+        new = row.copy()
+        new.setdefault(
+            "first_name",
+            data.get("first_name") or data.get("firstname") or data.get("vorname"),
+        )
+        new.setdefault(
+            "last_name",
+            data.get("last_name") or data.get("lastname") or data.get("nachname"),
+        )
+        new.setdefault("email", _pick_email(data))
+        new.setdefault("projekt", data.get("projekt"))
+        new.setdefault("ai_c_group", ai_c_group)
+        enriched.append(new)
+    return enriched
+
+
 def write_report_csv(
     report: dict[str, object],
     output_dir: str | Path,
@@ -173,4 +216,9 @@ def write_report_csv(
     return out_path
 
 
-__all__ = ["create_report", "create_active_reports", "write_report_csv"]
+__all__ = [
+    "create_report",
+    "create_active_reports",
+    "enrich_report_rows",
+    "write_report_csv",
+]
