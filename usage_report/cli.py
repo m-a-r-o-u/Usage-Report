@@ -252,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
                 for user in user_ids:
                     data = fetch_usage(user, start, end, partitions=args.partitions)
                     usage[user] = data.get("cpu_hours", 0.0)
+
                 if args.month:
                     store_month(
                         args.month,
