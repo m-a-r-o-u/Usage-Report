@@ -48,6 +48,22 @@ def print_usage_table(
         print(f"{user:<{user_width}} {hours:>{hours_width}.1f}")
 
 
+def print_report_table(report: dict[str, object]) -> None:
+    """Print ``report`` dictionary as a two-column table."""
+    if not report:
+        print("No data")
+        return
+    items = sorted(report.items())
+    key_width = max(len(k) for k, _ in items)
+    header = f"{'field':<{key_width}} value"
+    print(header)
+    print("-" * len(header))
+    for key, value in items:
+        if isinstance(value, float):
+            value = f"{value:.1f}"
+        print(f"{key:<{key_width}} {value}")
+
+
 def _add_sim_parser(sub: argparse._SubParsersAction) -> None:
     sim_parser = sub.add_parser("sim", help="Fetch LRZ SIM API user info")
     sim_parser.add_argument("user_id", help="LRZ user identifier")
@@ -229,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
             report_with_period["period_start"] = start
             report_with_period["period_end"] = end
 
-            pprint(report_with_period)
+            print_report_table(report_with_period)
             print(f"Report written to {output_path}")
         elif args.report_cmd == "active":
             start = args.start
