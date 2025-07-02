@@ -39,7 +39,13 @@ def test_create_report(tmp_path):
             with mock.patch("usage_report.report.list_user_groups", return_value=["users", "project-ai-c", "other"]):
                 report = create_report("mm123", "2025-01-01")
     assert report["email"] == "max.mustermann@example.com"
-    csv_path = write_report_csv(report, tmp_path, "out.csv", start="2025-01-01")
+    csv_path = write_report_csv(
+        report,
+        tmp_path,
+        "out.csv",
+        start="2025-01-01",
+        partitions=["gpu"],
+    )
     assert csv_path.exists()
     content = csv_path.read_text()
     assert "first_name,last_name" in content
@@ -74,9 +80,10 @@ def test_create_report_multiple_ai_c(tmp_path):
 
 def test_write_report_csv_append(tmp_path):
     row1 = {"first_name": "A", "last_name": "B"}
-    csv_path = write_report_csv(row1, tmp_path, "out.csv", start="2025-01-01")
+    csv_path = write_report_csv(row1, tmp_path, "out.csv", start="2025-01-01", partitions=["gpu"])
     row2 = {"first_name": "C", "last_name": "D"}
-    csv_path = write_report_csv(row2, tmp_path, "out.csv", start="2025-02-01")
+    csv_path = write_report_csv(row2, tmp_path, "out.csv", start="2025-02-01", partitions=["gpu"])
     lines = csv_path.read_text().splitlines()
     assert len(lines) == 3
     assert "timestamp" in lines[0]
+    assert "partitions" in lines[0]
