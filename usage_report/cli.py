@@ -325,8 +325,7 @@ def main(argv: list[str] | None = None) -> int:
                         )
                 else:
                     rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
-                for row in rows:
-                    print_report_table(row)
+                print_usage_table(rows)
             else:
                 rows = create_active_reports(
                     start,
@@ -334,8 +333,7 @@ def main(argv: list[str] | None = None) -> int:
                     partitions=args.partitions,
                     netrc_file=args.netrc_file,
                 )
-                for report in rows:
-                    print_report_table(report)
+                print_usage_table(rows)
 
                 if args.month:
                     store_month(
