@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "usage-report"
+name = "usage"
 version = "0.1.0"
 description = "Utilities to fetch usage information from LRZ SIM API"
 readme = "README.md"
@@ -14,7 +14,7 @@ authors = [
 dependencies = []
 
 [project.scripts]
-usage-report = "usage_report.cli:main"
+usage = "usage_report.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

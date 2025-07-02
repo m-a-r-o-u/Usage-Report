@@ -1,4 +1,4 @@
-"""Command line interface for usage-report."""
+"""Command line interface for usage."""
 from __future__ import annotations
 
 import argparse
@@ -23,6 +23,24 @@ def expand_month(month: str) -> tuple[str, str]:
         next_month = dt.replace(month=dt.month + 1, day=1)
     last_day = next_month - timedelta(days=1)
     return start.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
+
+
+def print_usage_table(usage: dict[str, float]) -> None:
+    """Print ``usage`` dictionary as a simple table."""
+    partitions = usage.pop("partitions", None)
+    items = sorted(usage.items())
+    if partitions:
+        print(f"Partitions: {', '.join(partitions)}")
+    if not items:
+        print("No data")
+        return
+    user_width = max(len(user) for user, _ in items)
+    hours_width = max(len(f"{hours:.1f}") for _, hours in items)
+    header = f"{'user':<{user_width}} {'hours':>{hours_width}}"
+    print(header)
+    print("-" * len(header))
+    for user, hours in items:
+        print(f"{user:<{user_width}} {hours:>{hours_width}.1f}")
 
 
 def _add_api_parser(sub: argparse._SubParsersAction) -> None:
@@ -220,8 +238,8 @@ def main(argv: list[str] | None = None) -> int:
             entries = list_months()
             pprint(entries)
         elif args.report_cmd == "show":
-            usage = load_month(args.month, partitions=args.partitions)
-            pprint(usage if usage is not None else {})
+            usage = load_month(args.month, partitions=args.partitions) or {}
+            print_usage_table(dict(usage))
     return 0
 
 
