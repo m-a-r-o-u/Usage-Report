@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from unittest import mock
+import subprocess
 
 from usage_report.groups import list_user_groups
 
@@ -12,3 +13,10 @@ def test_list_user_groups():
     with mock.patch("subprocess.run", return_value=mocked_proc):
         groups = list_user_groups("user")
     assert groups == ["user", "sudo", "test-ai-c"]
+
+
+def test_list_user_groups_error():
+    error = subprocess.CalledProcessError(1, ["id", "user"], stderr="fail")
+    with mock.patch("subprocess.run", side_effect=error):
+        groups = list_user_groups("user")
+    assert groups == []
