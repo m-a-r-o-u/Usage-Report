@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from typing import Iterable, Dict
 import fnmatch
 
@@ -81,7 +82,14 @@ def fetch_usage(
     if end:
         cmd.extend(["-E", end])
 
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as exc:
+        msg = " ".join(exc.cmd) if isinstance(exc.cmd, list) else str(exc.cmd)
+        print(f"Error running '{msg}': {exc}", file=sys.stderr)
+        if exc.stderr:
+            print(exc.stderr, file=sys.stderr)
+        return {"cpu_hours": 0.0, "gpu_hours": 0.0, "ram_gb_hours": 0.0}
     cpu_h = gpu_h = ram_h = 0.0
     for rec in parse_sacct_output(proc.stdout):
         job_id = rec.get("JobID", "")
