@@ -5,6 +5,7 @@ import argparse
 import sys
 from pprint import pprint
 from datetime import datetime, timedelta
+import logging
 
 from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
@@ -206,6 +207,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             argv_list.insert(1, "user")
 
     parser = argparse.ArgumentParser(description="Usage reporting utilities")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     _add_sim_parser(sub)
     _add_slurm_parser(sub)
@@ -216,6 +222,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if getattr(args, "debug", False):
+        logging.basicConfig(level=logging.DEBUG)
     if args.command == "sim":
         api = SimAPI(netrc_file=args.netrc_file)
         try:
