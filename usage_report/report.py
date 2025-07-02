@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import csv
+import logging
 from datetime import datetime
 from typing import Iterable
 
@@ -10,6 +11,8 @@ from .api import SimAPI, SimAPIError
 from .slurm import fetch_usage
 from .groups import list_user_groups
 from .sreport import fetch_active_usage
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_user_data(data: dict[str, object]) -> dict[str, object]:
@@ -117,13 +120,17 @@ def create_active_reports(
     user_ids = [u for u in active if u != "partitions"]
     rows: list[dict[str, object]] = []
     for user in user_ids:
-        report = create_report(
-            user,
-            start,
-            end,
-            partitions=partitions,
-            netrc_file=netrc_file,
-        )
+        try:
+            report = create_report(
+                user,
+                start,
+                end,
+                partitions=partitions,
+                netrc_file=netrc_file,
+            )
+        except SimAPIError as exc:
+            logger.error("Skipping user %s due to error: %s", user, exc)
+            continue
         report["period_start"] = start
         report["period_end"] = end
         report["timestamp"] = datetime.now().isoformat(timespec="seconds")

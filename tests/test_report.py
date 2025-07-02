@@ -10,6 +10,7 @@ from usage_report.report import (
     _pick_email,
     write_report_csv,
 )
+from usage_report.api import SimAPIError
 
 
 def test_pick_email_preferred():
@@ -138,3 +139,24 @@ def test_enrich_report_rows():
     assert result[0]["email"] == "max@example.com"
     assert result[0]["projekt"] == "proj"
     assert result[0]["ai_c_group"] == "test-ai-c"
+
+
+def test_create_active_reports_skip_error():
+    sample_active = {"partitions": [], "user1": 5.0, "bad": 3.0, "user2": 2.0}
+
+    def fake_create(user, start, end, partitions=None, netrc_file=None):
+        if user == "bad":
+            raise SimAPIError("fail")
+        return {"kennung": user}
+
+    with mock.patch(
+        "usage_report.report.fetch_active_usage", return_value=sample_active
+    ) as fa:
+        with mock.patch(
+            "usage_report.report.create_report", side_effect=fake_create
+        ) as cr:
+            rows = create_active_reports("2025-06-01", "2025-06-30")
+
+    fa.assert_called_once_with("2025-06-01", "2025-06-30", partitions=None)
+    assert {call.args[0] for call in cr.call_args_list} == {"user1", "bad", "user2"}
+    assert {r["kennung"] for r in rows} == {"user1", "user2"}
