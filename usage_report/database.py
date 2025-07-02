@@ -65,7 +65,11 @@ def load_month(
     row = cur.fetchone()
     conn.close()
     if row:
-        return json.loads(row[0])
+        data = json.loads(row[0])
+        if isinstance(data, dict):
+            # Support legacy entries storing a single dictionary
+            data = [data]
+        return data
     return None
 
 
