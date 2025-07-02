@@ -3,7 +3,12 @@ import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().par
 
 from unittest import mock
 
-from usage_report.report import create_report, _pick_email, write_report_csv
+from usage_report.report import (
+    create_report,
+    create_active_reports,
+    _pick_email,
+    write_report_csv,
+)
 
 
 def test_pick_email_preferred():
@@ -87,3 +92,22 @@ def test_write_report_csv_append(tmp_path):
     assert len(lines) == 3
     assert "timestamp" in lines[0]
     assert "partitions" in lines[0]
+
+
+def test_create_active_reports():
+    sample_active = {"partitions": ["gpu"], "user1": 5.0, "user2": 3.0}
+    reports = [
+        {"kennung": "user1", "cpu_hours": 1.0},
+        {"kennung": "user2", "cpu_hours": 2.0},
+    ]
+    with mock.patch("usage_report.report.fetch_active_usage", return_value=sample_active) as fa:
+        with mock.patch(
+            "usage_report.report.create_report",
+            side_effect=reports,
+        ) as cr:
+            rows = create_active_reports("2025-06-01", "2025-06-30", partitions=["gpu"])
+    fa.assert_called_once_with("2025-06-01", "2025-06-30", partitions=["gpu"])
+    assert cr.call_count == 2
+    assert {call.args[0] for call in cr.call_args_list} == {"user1", "user2"}
+    assert all("timestamp" in r for r in rows)
+    assert all(r["period_start"] == "2025-06-01" for r in rows)

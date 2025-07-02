@@ -9,6 +9,7 @@ from typing import Iterable
 from .api import SimAPI
 from .slurm import fetch_usage
 from .groups import list_user_groups
+from .sreport import fetch_active_usage
 
 
 def _normalize_user_data(data: dict[str, object]) -> dict[str, object]:
@@ -100,6 +101,36 @@ def create_report(
     return report
 
 
+def create_active_reports(
+    start: str,
+    end: str | None = None,
+    *,
+    partitions: Iterable[str] | None = None,
+    netrc_file: str | Path | None = None,
+) -> list[dict[str, object]]:
+    """Return combined report rows for all active users.
+
+    The list includes a ``timestamp`` as well as ``period_start`` and
+    ``period_end`` fields for each user.
+    """
+    active = fetch_active_usage(start, end, partitions=partitions)
+    user_ids = [u for u in active if u != "partitions"]
+    rows: list[dict[str, object]] = []
+    for user in user_ids:
+        report = create_report(
+            user,
+            start,
+            end,
+            partitions=partitions,
+            netrc_file=netrc_file,
+        )
+        report["period_start"] = start
+        report["period_end"] = end
+        report["timestamp"] = datetime.now().isoformat(timespec="seconds")
+        rows.append(report)
+    return rows
+
+
 def write_report_csv(
     report: dict[str, object],
     output_dir: str | Path,
@@ -142,4 +173,4 @@ def write_report_csv(
     return out_path
 
 
-__all__ = ["create_report", "write_report_csv"]
+__all__ = ["create_report", "create_active_reports", "write_report_csv"]
