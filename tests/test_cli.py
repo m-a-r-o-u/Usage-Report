@@ -55,5 +55,70 @@ def test_report_active_netrc(monkeypatch):
     monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
     monkeypatch.setattr(cli, "print_usage_table", lambda rows, *a, **k: None)
 
-    cli.main(["report", "active", "--month", "2025-06", "--netrc-file", "creds"]) 
+    cli.main(["report", "active", "--month", "2025-06", "--netrc-file", "creds"])
     assert captured.get("netrc") == "creds"
+
+
+def test_show_sort_parse():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "show",
+        "--month",
+        "2025-06",
+        "--sortby",
+        "last_name",
+        "--desc",
+    ])
+    assert args.report_cmd == "show"
+    assert args.month == "2025-06"
+    assert args.sortby == "last_name"
+    assert args.desc is True
+
+
+def test_show_sort_default():
+    from usage_report.cli import parse_args
+
+    args = parse_args(["report", "show", "--month", "2025-06"])
+    assert args.sortby == "gpu_hours"
+
+
+def test_print_usage_table_sort(capsys):
+    from usage_report.cli import print_usage_table
+
+    rows = [
+        {
+            "first_name": "A",
+            "last_name": "",
+            "email": "",
+            "kennung": "a",
+            "projekt": "",
+            "ai_c_group": "",
+            "cpu_hours": 0.0,
+            "gpu_hours": 1.0,
+            "ram_gb_hours": 0.0,
+            "timestamp": "",
+            "period_start": "",
+            "period_end": "",
+        },
+        {
+            "first_name": "B",
+            "last_name": "",
+            "email": "",
+            "kennung": "b",
+            "projekt": "",
+            "ai_c_group": "",
+            "cpu_hours": 0.0,
+            "gpu_hours": 5.0,
+            "ram_gb_hours": 0.0,
+            "timestamp": "",
+            "period_start": "",
+            "period_end": "",
+        },
+    ]
+
+    print_usage_table(rows, sort_key="gpu_hours", reverse=True)
+    out = capsys.readouterr().out.splitlines()
+    first_row = out[2]
+    assert first_row.startswith("B")

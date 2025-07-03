@@ -32,7 +32,12 @@ def expand_month(month: str) -> tuple[str, str]:
 
 
 def print_usage_table(
-    rows: list[dict[str, object]], *, start: str | None = None, end: str | None = None
+    rows: list[dict[str, object]],
+    *,
+    start: str | None = None,
+    end: str | None = None,
+    sort_key: str | None = None,
+    reverse: bool = False,
 ) -> None:
     """Print ``rows`` as a table."""
     if start or end:
@@ -64,6 +69,16 @@ def print_usage_table(
             if isinstance(val, float):
                 val = f"{val:.1f}"
             widths[c] = max(widths[c], len(str(val)))
+
+    if sort_key:
+        try:
+            rows = sorted(rows, key=lambda r: r.get(sort_key) or 0, reverse=reverse)
+        except TypeError:
+            rows = sorted(
+                rows,
+                key=lambda r: str(r.get(sort_key, "")),
+                reverse=reverse,
+            )
 
     header = " ".join(f"{c:<{widths[c]}}" for c in columns)
     print(header)
@@ -169,6 +184,17 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         "--netrc-file",
         dest="netrc_file",
         help="Custom path to .netrc file for authentication",
+    )
+    show_parser.add_argument(
+        "--sortby",
+        dest="sortby",
+        default="gpu_hours",
+        help="Column to sort by (default: gpu_hours)",
+    )
+    show_parser.add_argument(
+        "--desc",
+        action="store_true",
+        help="Sort in descending order",
     )
 
 
@@ -374,7 +400,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             start = match["start"] if match else None
             end = match["end"] if match else None
-            print_usage_table(usage, start=start, end=end)
+            print_usage_table(
+                usage,
+                start=start,
+                end=end,
+                sort_key=args.sortby,
+                reverse=(args.desc or args.sortby == "gpu_hours"),
+            )
     return 0
 
 
