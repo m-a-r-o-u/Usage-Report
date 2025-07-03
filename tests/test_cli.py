@@ -84,6 +84,22 @@ def test_show_sort_default():
     assert args.sortby == "gpu_hours"
 
 
+def test_active_sort_parse():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--sortby",
+        "last_name",
+        "--desc",
+    ])
+    assert args.sortby == "last_name"
+    assert args.desc is True
+
+
 def test_print_usage_table_sort(capsys):
     from usage_report.cli import print_usage_table
 
@@ -122,3 +138,67 @@ def test_print_usage_table_sort(capsys):
     out = capsys.readouterr().out.splitlines()
     first_row = out[2]
     assert first_row.startswith("B")
+
+
+def test_report_active_sort(monkeypatch):
+    from usage_report import cli
+
+    data = [{"kennung": "u1", "gpu_hours": 1.0}]
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: data)
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+
+    captured = {}
+
+    def fake_print(rows, *a, **kw):
+        captured.update(kw)
+
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--sortby",
+        "last_name",
+        "--desc",
+    ])
+
+    assert captured.get("sort_key") == "last_name"
+    assert captured.get("reverse") is True
+
+
+def test_report_active_sort_ignore(monkeypatch):
+    from usage_report import cli
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: None)
+
+    called = {}
+
+    def fake_create(start, end, partitions=None, netrc_file=None):
+        called["created"] = True
+        return []
+
+    monkeypatch.setattr(cli, "create_active_reports", fake_create)
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+
+    captured = {}
+
+    def fake_print(rows, *a, **kw):
+        captured.update(kw)
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--sortby",
+        "last_name",
+    ])
+
+    assert "created" in called
+    assert captured.get("sort_key") is None
