@@ -168,6 +168,17 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         action="append",
         help="Partition to include (can be used multiple times, supports wildcards)",
     )
+    active_parser.add_argument(
+        "--sortby",
+        dest="sortby",
+        default="gpu_hours",
+        help="Column to sort by when showing cached data (default: gpu_hours)",
+    )
+    active_parser.add_argument(
+        "--desc",
+        action="store_true",
+        help="Sort in descending order when showing cached data",
+    )
 
     list_parser = rep_sub.add_parser("list", help="List stored monthly usage data")
 
@@ -351,7 +362,11 @@ def main(argv: list[str] | None = None) -> int:
                         )
                 else:
                     rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
-                print_usage_table(rows)
+                print_usage_table(
+                    rows,
+                    sort_key=args.sortby,
+                    reverse=(args.desc or args.sortby == "gpu_hours"),
+                )
             else:
                 rows = create_active_reports(
                     start,
