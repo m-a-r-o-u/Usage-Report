@@ -108,7 +108,8 @@ def test_create_active_reports():
             side_effect=reports,
         ) as cr:
             rows = create_active_reports("2025-06-01", "2025-06-30", partitions=["gpu"])
-    fa.assert_called_once_with("2025-06-01", "2025-06-30", partitions=["gpu"])
+    # ``fetch_active_usage`` no longer receives partition filters
+    fa.assert_called_once_with("2025-06-01", "2025-06-30")
     assert cr.call_count == 2
     assert {call.args[0] for call in cr.call_args_list} == {"user1", "user2"}
     assert all("timestamp" in r for r in rows)
@@ -157,6 +158,7 @@ def test_create_active_reports_skip_error():
         ) as cr:
             rows = create_active_reports("2025-06-01", "2025-06-30")
 
-    fa.assert_called_once_with("2025-06-01", "2025-06-30", partitions=None)
+    # fetch_active_usage is called without partition filters
+    fa.assert_called_once_with("2025-06-01", "2025-06-30")
     assert {call.args[0] for call in cr.call_args_list} == {"user1", "bad", "user2"}
     assert {r["kennung"] for r in rows} == {"user1", "user2"}

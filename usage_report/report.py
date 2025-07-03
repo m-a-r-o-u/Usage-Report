@@ -116,7 +116,9 @@ def create_active_reports(
     The list includes a ``timestamp`` as well as ``period_start`` and
     ``period_end`` fields for each user.
     """
-    active = fetch_active_usage(start, end, partitions=partitions)
+    # fetch_active_usage does not support partition filtering via sreport,
+    # so the partitions are only applied when creating individual reports
+    active = fetch_active_usage(start, end)
     user_ids = [u for u in active if u != "partitions"]
     rows: list[dict[str, object]] = []
     for user in user_ids:
