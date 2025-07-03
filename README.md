@@ -40,4 +40,8 @@ usage report <user_id> --month 2025-06 [--netrc-file PATH]
 usage report list
 # show stored month
 usage report show --month 2025-06 [--netrc-file PATH]
+# default sort by GPU hours descending
+usage report show --month 2025-06
+# custom sort column
+usage report show --month 2025-06 --sortby last_name
 ```
