@@ -43,7 +43,8 @@ def fetch_active_usage(
         returned.
     partitions:
         Iterable of partitions to include. Only stored in the result for
-        reference.
+        reference. ``sreport`` does not support filtering by partitions,
+        therefore the argument is ignored when building the command.
     """
     cmd = [
         "sreport",
@@ -53,9 +54,6 @@ def fetch_active_usage(
     ]
     if end:
         cmd.append(f"end={end}")
-    if partitions:
-        for part in partitions:
-            cmd.append(f"partition={part}")
     cmd.append("format=Login,Used")
     proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
     usage = parse_sreport_output(proc.stdout)
