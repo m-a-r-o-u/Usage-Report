@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import subprocess
-import sys
+import logging
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 
 def list_user_groups(user: str) -> List[str]:
@@ -13,9 +15,9 @@ def list_user_groups(user: str) -> List[str]:
         )
     except subprocess.CalledProcessError as exc:
         msg = " ".join(exc.cmd) if isinstance(exc.cmd, list) else str(exc.cmd)
-        print(f"Error running '{msg}': {exc}", file=sys.stderr)
+        logger.debug("Error running '%s': %s", msg, exc)
         if exc.stderr:
-            print(exc.stderr, file=sys.stderr)
+            logger.debug(exc.stderr)
         return []
     output = proc.stdout.strip()
     try:
