@@ -299,3 +299,63 @@ def test_active_aggregate_group(monkeypatch):
     cli.main(["report", "active", "--month", "2025-06", "--aggregate", "group"])
 
     assert called.get("group") is True
+
+
+def test_active_output_partition(monkeypatch):
+    from usage_report import cli
+
+    sample = [
+        {
+            "kennung": "u1",
+            "cpu_hours": 1.0,
+            "gpu_hours": 1.0,
+            "ram_gb_hours": 0.0,
+            "timestamp": "t",
+            "period_start": "2025-06-01",
+            "period_end": "2025-06-30",
+        }
+    ]
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: sample)
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+
+    captured = {}
+
+    def fake_print(rows, *a, **kw):
+        captured["rows"] = rows
+        captured["cols"] = kw.get("columns")
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main(["report", "active", "--month", "2025-06", "--partition", "mcml*"])
+
+    row = captured["rows"][0]
+    assert row["partition"] == "mcml*"
+    assert "partition" in captured["cols"]
+
+
+def test_active_output_partition_all(monkeypatch):
+    from usage_report import cli
+
+    sample = [{"kennung": "u1"}]
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: sample)
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+
+    captured = {}
+
+    def fake_print(rows, *a, **kw):
+        captured["rows"] = rows
+        captured["cols"] = kw.get("columns")
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main(["report", "active", "--month", "2025-06"])
+
+    row = captured["rows"][0]
+    assert row["partition"] == "*"
+    assert "partition" in captured["cols"]

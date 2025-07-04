@@ -385,10 +385,28 @@ def main(argv: list[str] | None = None) -> int:
                             if args.aggregate:
                                 agg_rows.extend(rows)
                             else:
+                                part_val = ",".join(sorted(args.partitions or ["*"]))
+                                show_rows = [r | {"partition": part_val} for r in rows]
+                                cols = [
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                    "kennung",
+                                    "projekt",
+                                    "ai_c_group",
+                                    "cpu_hours",
+                                    "gpu_hours",
+                                    "ram_gb_hours",
+                                    "timestamp",
+                                    "period_start",
+                                    "period_end",
+                                    "partition",
+                                ]
                                 print_usage_table(
-                                    rows,
+                                    show_rows,
                                     sort_key=args.sortby,
                                     reverse=(args.desc or args.sortby == "gpu_hours"),
+                                    columns=cols,
                                 )
                     else:
                         rows = create_active_reports(
@@ -411,7 +429,24 @@ def main(argv: list[str] | None = None) -> int:
                     partitions=args.partitions,
                     netrc_file=args.netrc_file,
                 )
-                print_usage_table(rows)
+                part_val = ",".join(sorted(args.partitions or ["*"]))
+                show_rows = [r | {"partition": part_val} for r in rows]
+                cols = [
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "kennung",
+                    "projekt",
+                    "ai_c_group",
+                    "cpu_hours",
+                    "gpu_hours",
+                    "ram_gb_hours",
+                    "timestamp",
+                    "period_start",
+                    "period_end",
+                    "partition",
+                ]
+                print_usage_table(show_rows, columns=cols)
                 if args.month:
                     store_month(
                         args.month,
