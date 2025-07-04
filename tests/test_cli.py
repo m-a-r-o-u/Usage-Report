@@ -404,3 +404,66 @@ def test_active_output_partition_all(monkeypatch):
     row = captured["rows"][0]
     assert row["partition"] == "*"
     assert "partition" in captured["cols"]
+
+
+def test_parse_plot_option():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--aggregate",
+        "group",
+        "--plot",
+        "donut,gpu_hours,4000",
+    ])
+
+    assert args.plot == "donut,gpu_hours,4000"
+
+
+def test_active_plot_call(monkeypatch):
+    from usage_report import cli
+
+    sample = [
+        {
+            "kennung": "u1",
+            "ai_c_group": "g",
+            "gpu_hours": 5.0,
+            "cpu_hours": 0.0,
+            "ram_gb_hours": 0.0,
+            "timestamp": "t",
+            "period_start": "p1",
+            "period_end": "p2",
+        }
+    ]
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: sample)
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+    monkeypatch.setattr(cli, "aggregate_rows", lambda *a, **k: sample)
+    monkeypatch.setattr(cli, "print_usage_table", lambda *a, **k: None)
+
+    called = {}
+
+    def fake_plot(rows, column, cutoff):
+        called["column"] = column
+        called["cutoff"] = cutoff
+
+    monkeypatch.setattr(cli, "create_donut_plot", fake_plot)
+
+    cli.main([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--aggregate",
+        "group",
+        "--plot",
+        "donut,gpu_hours,100",
+    ])
+
+    assert called["column"] == "gpu_hours"
+    assert called["cutoff"] == 100.0
