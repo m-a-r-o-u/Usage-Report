@@ -104,3 +104,5 @@ notebooks/
 # Optional: Ignore SQLite database files
 *.sqlite3
 *.db
+output
+*~
