@@ -473,7 +473,12 @@ def main(argv: list[str] | None = None) -> int:
                         "period_start",
                         "period_end",
                     ]
-                    print_usage_table(aggregated, columns=cols)
+                    print_usage_table(
+                        aggregated,
+                        sort_key=args.sortby,
+                        reverse=(args.desc or args.sortby == "gpu_hours"),
+                        columns=cols,
+                    )
                 else:
                     cols = [
                         "first_name",
