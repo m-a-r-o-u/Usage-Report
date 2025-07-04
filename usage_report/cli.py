@@ -18,6 +18,7 @@ from .report import (
     write_report_csv,
     aggregate_rows,
 )
+from .plotting import create_donut_plot
 
 
 def expand_month(month: str) -> tuple[str, str]:
@@ -30,6 +31,17 @@ def expand_month(month: str) -> tuple[str, str]:
         next_month = dt.replace(month=dt.month + 1, day=1)
     last_day = next_month - timedelta(days=1)
     return start.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
+
+
+def _parse_plot_spec(spec: str) -> tuple[str, str, float | None]:
+    """Return (kind, column, cutoff) parsed from *spec*."""
+    parts = [p.strip() for p in spec.split(',')]
+    if len(parts) < 2:
+        raise ValueError("plot spec must be type,column[,cutoff]")
+    kind = parts[0].lower()
+    column = parts[1]
+    cutoff = float(parts[2]) if len(parts) > 2 and parts[2] else None
+    return kind, column, cutoff
 
 
 def print_usage_table(
@@ -177,6 +189,11 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         const="user",
         choices=["user", "group"],
         help="Aggregate cached months (optionally by group)",
+    )
+    active_parser.add_argument(
+        "--plot",
+        dest="plot",
+        help="Create a plot from aggregated data (e.g. donut,gpu_hours,4000)",
     )
     active_parser.add_argument(
         "--sortby",
@@ -479,6 +496,10 @@ def main(argv: list[str] | None = None) -> int:
                         reverse=(args.desc or args.sortby == "gpu_hours"),
                         columns=cols,
                     )
+                    if args.plot:
+                        kind, column, cutoff = _parse_plot_spec(args.plot)
+                        if kind == "donut":
+                            create_donut_plot(aggregated, column, cutoff)
                 else:
                     cols = [
                         "first_name",
@@ -501,6 +522,10 @@ def main(argv: list[str] | None = None) -> int:
                         reverse=(args.desc or args.sortby == "gpu_hours"),
                         columns=cols,
                     )
+                    if args.plot:
+                        kind, column, cutoff = _parse_plot_spec(args.plot)
+                        if kind == "donut":
+                            create_donut_plot(aggregated, column, cutoff)
         elif args.report_cmd == "list":
             entries = list_months()
             pprint(entries)
