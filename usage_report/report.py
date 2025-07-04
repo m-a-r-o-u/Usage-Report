@@ -233,7 +233,7 @@ def aggregate_rows(
 ) -> list[dict[str, object]]:
     """Return ``rows`` aggregated either by user or by ``ai_c_group``."""
 
-    part_str = ",".join(sorted(partitions or []))
+    part_str = ",".join(sorted(partitions or ["*"]))
     aggr: dict[str, dict[str, object]] = {}
     for row in rows:
         if not isinstance(row, dict):
