@@ -16,6 +16,7 @@ from .report import (
     create_active_reports,
     enrich_report_rows,
     write_report_csv,
+    aggregate_rows,
 )
 
 
@@ -38,6 +39,7 @@ def print_usage_table(
     end: str | None = None,
     sort_key: str | None = None,
     reverse: bool = False,
+    columns: list[str] | None = None,
 ) -> None:
     """Print ``rows`` as a table."""
     if start or end:
@@ -47,20 +49,21 @@ def print_usage_table(
         print("No data")
         return
 
-    columns = [
-        "first_name",
-        "last_name",
-        "email",
-        "kennung",
-        "projekt",
-        "ai_c_group",
-        "cpu_hours",
-        "gpu_hours",
-        "ram_gb_hours",
-        "timestamp",
-        "period_start",
-        "period_end",
-    ]
+    if columns is None:
+        columns = [
+            "first_name",
+            "last_name",
+            "email",
+            "kennung",
+            "projekt",
+            "ai_c_group",
+            "cpu_hours",
+            "gpu_hours",
+            "ram_gb_hours",
+            "timestamp",
+            "period_start",
+            "period_end",
+        ]
 
     widths = {c: len(c) for c in columns}
     for row in rows:
@@ -169,6 +172,13 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         help="Partition to include (can be used multiple times, supports wildcards)",
     )
     active_parser.add_argument(
+        "--aggregate",
+        nargs="?",
+        const="user",
+        choices=["user", "group"],
+        help="Aggregate cached months (optionally by group)",
+    )
+    active_parser.add_argument(
         "--sortby",
         dest="sortby",
         default="gpu_hours",
@@ -215,7 +225,7 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
     )
     grp = active_parser.add_mutually_exclusive_group(required=True)
     grp.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
-    grp.add_argument("--month", help="Month YYYY-MM")
+    grp.add_argument("--month", help="Month YYYY-MM or comma separated months")
     active_parser.add_argument("-E", "--end", help="End date YYYY-MM-DD")
     active_parser.add_argument(
         "-u",
@@ -230,6 +240,13 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
         dest="partitions",
         action="append",
         help="Partition to include (can be used multiple times, supports wildcards)",
+    )
+    active_parser.add_argument(
+        "--aggregate",
+        nargs="?",
+        const="user",
+        choices=["user", "group"],
+        help="Aggregate cached months (optionally by group)",
     )
 
 
@@ -334,39 +351,59 @@ def main(argv: list[str] | None = None) -> int:
         elif args.report_cmd == "active":
             start = args.start
             end = args.end
-            if args.month:
+            months = [args.month] if args.month and "," not in args.month else []
+            if args.month and "," in args.month:
+                months = [m.strip() for m in args.month.split(",") if m.strip()]
+            if months:
                 if args.end:
                     print("--end cannot be used with --month", file=sys.stderr)
                     return 1
-                start, end = expand_month(args.month)
-            existing = None
-            if args.month:
-                existing = load_month(args.month, partitions=args.partitions)
-            if existing is not None:
-                rows = list(existing)
-                sample = rows[0] if rows else {}
-                if not isinstance(sample, dict) or "kennung" not in sample:
-                    rows = create_active_reports(
-                        start,
-                        end,
-                        partitions=args.partitions,
-                        netrc_file=args.netrc_file,
-                    )
-                    if args.month:
+            agg_rows: list[dict[str, object]] = []
+            if months:
+                for mon in months:
+                    m_start, m_end = expand_month(mon)
+                    existing = load_month(mon, partitions=args.partitions)
+                    if existing is not None:
+                        rows = list(existing)
+                        sample = rows[0] if rows else {}
+                        if not isinstance(sample, dict) or "kennung" not in sample:
+                            rows = create_active_reports(
+                                m_start,
+                                m_end,
+                                partitions=args.partitions,
+                                netrc_file=args.netrc_file,
+                            )
+                            store_month(
+                                mon,
+                                m_start,
+                                m_end or "",
+                                rows,
+                                partitions=args.partitions,
+                            )
+                        else:
+                            rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
+                            if args.aggregate:
+                                agg_rows.extend(rows)
+                            else:
+                                print_usage_table(
+                                    rows,
+                                    sort_key=args.sortby,
+                                    reverse=(args.desc or args.sortby == "gpu_hours"),
+                                )
+                    else:
+                        rows = create_active_reports(
+                            m_start,
+                            m_end,
+                            partitions=args.partitions,
+                            netrc_file=args.netrc_file,
+                        )
                         store_month(
-                            args.month,
-                            start,
-                            end or "",
+                            mon,
+                            m_start,
+                            m_end or "",
                             rows,
                             partitions=args.partitions,
                         )
-                else:
-                    rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
-                print_usage_table(
-                    rows,
-                    sort_key=args.sortby,
-                    reverse=(args.desc or args.sortby == "gpu_hours"),
-                )
             else:
                 rows = create_active_reports(
                     start,
@@ -375,7 +412,6 @@ def main(argv: list[str] | None = None) -> int:
                     netrc_file=args.netrc_file,
                 )
                 print_usage_table(rows)
-
                 if args.month:
                     store_month(
                         args.month,
@@ -383,6 +419,47 @@ def main(argv: list[str] | None = None) -> int:
                         end or "",
                         rows,
                         partitions=args.partitions,
+                    )
+
+            if args.aggregate and agg_rows:
+                aggregated = aggregate_rows(
+                    agg_rows,
+                    by_group=(args.aggregate == "group"),
+                    partitions=args.partitions,
+                )
+                if args.aggregate == "group":
+                    cols = [
+                        "ai_c_group",
+                        "partition",
+                        "cpu_hours",
+                        "gpu_hours",
+                        "ram_gb_hours",
+                        "timestamp",
+                        "period_start",
+                        "period_end",
+                    ]
+                    print_usage_table(aggregated, columns=cols)
+                else:
+                    cols = [
+                        "first_name",
+                        "last_name",
+                        "email",
+                        "kennung",
+                        "projekt",
+                        "ai_c_group",
+                        "cpu_hours",
+                        "gpu_hours",
+                        "ram_gb_hours",
+                        "timestamp",
+                        "period_start",
+                        "period_end",
+                        "partition",
+                    ]
+                    print_usage_table(
+                        aggregated,
+                        sort_key=args.sortby,
+                        reverse=(args.desc or args.sortby == "gpu_hours"),
+                        columns=cols,
                     )
         elif args.report_cmd == "list":
             entries = list_months()

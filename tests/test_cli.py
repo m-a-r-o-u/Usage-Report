@@ -202,3 +202,100 @@ def test_report_active_sort_ignore(monkeypatch):
 
     assert "created" in called
     assert captured.get("sort_key") is None
+
+
+def test_parse_multi_month_aggregate():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "active",
+        "--month",
+        "2025-05,2025-06",
+        "--aggregate",
+        "group",
+    ])
+
+    assert args.month == "2025-05,2025-06"
+    assert args.aggregate == "group"
+
+
+def test_active_aggregate(monkeypatch):
+    from usage_report import cli
+
+    months = {
+        "2025-05": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 1.0,
+                "gpu_hours": 1.0,
+                "ram_gb_hours": 1.0,
+                "timestamp": "t1",
+                "period_start": "2025-05-01",
+                "period_end": "2025-05-31",
+            }
+        ],
+        "2025-06": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 2.0,
+                "gpu_hours": 0.5,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t2",
+                "period_start": "2025-06-01",
+                "period_end": "2025-06-30",
+            }
+        ],
+    }
+
+    monkeypatch.setattr(cli, "load_month", lambda m, partitions=None: months[m])
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+
+    captured = {}
+
+    def fake_print(rows, *a, **k):
+        captured["rows"] = rows
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main(["report", "active", "--month", "2025-05,2025-06", "--aggregate"])
+
+    row = captured["rows"][0]
+    assert row["cpu_hours"] == 3.0
+    assert row["gpu_hours"] == 1.5
+    assert row["partition"] == ""
+
+
+def test_active_aggregate_group(monkeypatch):
+    from usage_report import cli
+    sample = [
+        {
+            "kennung": "u1",
+            "ai_c_group": "g1",
+            "cpu_hours": 1.0,
+            "gpu_hours": 1.0,
+            "ram_gb_hours": 1.0,
+            "timestamp": "t",
+            "period_start": "2025-06-01",
+            "period_end": "2025-06-30",
+        }
+    ]
+
+    monkeypatch.setattr(cli, "load_month", lambda *a, **k: sample)
+    called = {}
+
+    def fake_aggregate(rows, *, by_group, partitions=None):
+        called["group"] = by_group
+        return []
+
+    monkeypatch.setattr(cli, "aggregate_rows", fake_aggregate)
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+    monkeypatch.setattr(cli, "print_usage_table", lambda *a, **k: None)
+
+    cli.main(["report", "active", "--month", "2025-06", "--aggregate", "group"])
+
+    assert called.get("group") is True

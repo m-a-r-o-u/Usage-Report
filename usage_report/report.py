@@ -225,9 +225,59 @@ def write_report_csv(
     return out_path
 
 
+def aggregate_rows(
+    rows: Iterable[dict[str, object]],
+    *,
+    by_group: bool = False,
+    partitions: Iterable[str] | None = None,
+) -> list[dict[str, object]]:
+    """Return ``rows`` aggregated either by user or by ``ai_c_group``."""
+
+    part_str = ",".join(sorted(partitions or []))
+    aggr: dict[str, dict[str, object]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        groups = row.get("ai_c_group", "")
+        keys = [row.get("kennung")] if not by_group else (groups.split("|") if groups else [""])
+        for key in keys:
+            if key is None:
+                continue
+            cur = aggr.setdefault(
+                str(key),
+                {
+                    "first_name": row.get("first_name"),
+                    "last_name": row.get("last_name"),
+                    "email": row.get("email"),
+                    "kennung": row.get("kennung"),
+                    "projekt": row.get("projekt"),
+                    "ai_c_group": key if by_group else row.get("ai_c_group", ""),
+                    "cpu_hours": 0.0,
+                    "gpu_hours": 0.0,
+                    "ram_gb_hours": 0.0,
+                    "timestamp": row.get("timestamp", ""),
+                    "period_start": row.get("period_start"),
+                    "period_end": row.get("period_end"),
+                    "partition": part_str,
+                },
+            )
+            cur["cpu_hours"] = float(cur.get("cpu_hours", 0.0)) + float(row.get("cpu_hours", 0.0))
+            cur["gpu_hours"] = float(cur.get("gpu_hours", 0.0)) + float(row.get("gpu_hours", 0.0))
+            cur["ram_gb_hours"] = float(cur.get("ram_gb_hours", 0.0)) + float(row.get("ram_gb_hours", 0.0))
+
+            start = str(row.get("period_start")) if row.get("period_start") else ""
+            end = str(row.get("period_end")) if row.get("period_end") else ""
+            if cur.get("period_start") is None or (start and start < cur["period_start"]):
+                cur["period_start"] = start
+            if cur.get("period_end") is None or (end and end > cur["period_end"]):
+                cur["period_end"] = end
+    return list(aggr.values())
+
+
 __all__ = [
     "create_report",
     "create_active_reports",
     "enrich_report_rows",
     "write_report_csv",
+    "aggregate_rows",
 ]
