@@ -417,10 +417,10 @@ def test_parse_plot_option():
         "--aggregate",
         "group",
         "--plot",
-        "donut,gpu_hours,4000",
+        "donut,gpu_hours",
     ])
 
-    assert args.plot == "donut,gpu_hours,4000"
+    assert args.plot == "donut,gpu_hours"
 
 
 def test_active_plot_call(monkeypatch):
@@ -448,9 +448,10 @@ def test_active_plot_call(monkeypatch):
 
     called = {}
 
-    def fake_plot(rows, column, cutoff):
+    def fake_plot(rows, column, *, start=None, end=None, title=None):
         called["column"] = column
-        called["cutoff"] = cutoff
+        called["start"] = start
+        called["end"] = end
 
     monkeypatch.setattr(cli, "create_donut_plot", fake_plot)
 
@@ -462,8 +463,9 @@ def test_active_plot_call(monkeypatch):
         "--aggregate",
         "group",
         "--plot",
-        "donut,gpu_hours,100",
+        "donut,gpu_hours",
     ])
 
     assert called["column"] == "gpu_hours"
-    assert called["cutoff"] == 100.0
+    assert called["start"] == "p1"
+    assert called["end"] == "p2"

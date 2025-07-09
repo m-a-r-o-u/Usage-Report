@@ -33,15 +33,14 @@ def expand_month(month: str) -> tuple[str, str]:
     return start.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
 
 
-def _parse_plot_spec(spec: str) -> tuple[str, str, float | None]:
-    """Return (kind, column, cutoff) parsed from *spec*."""
+def _parse_plot_spec(spec: str) -> tuple[str, str]:
+    """Return (kind, column) parsed from *spec*."""
     parts = [p.strip() for p in spec.split(',')]
-    if len(parts) < 2:
-        raise ValueError("plot spec must be type,column[,cutoff]")
+    if len(parts) != 2:
+        raise ValueError("plot spec must be type,column")
     kind = parts[0].lower()
     column = parts[1]
-    cutoff = float(parts[2]) if len(parts) > 2 and parts[2] else None
-    return kind, column, cutoff
+    return kind, column
 
 
 def print_usage_table(
@@ -193,7 +192,7 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
     active_parser.add_argument(
         "--plot",
         dest="plot",
-        help="Create a plot from aggregated data (e.g. donut,gpu_hours,4000)",
+        help="Create a plot from aggregated data (e.g. donut,gpu_hours)",
     )
     active_parser.add_argument(
         "--sortby",
@@ -497,9 +496,23 @@ def main(argv: list[str] | None = None) -> int:
                         columns=cols,
                     )
                     if args.plot:
-                        kind, column, cutoff = _parse_plot_spec(args.plot)
+                        kind, column = _parse_plot_spec(args.plot)
                         if kind == "donut":
-                            create_donut_plot(aggregated, column, cutoff)
+                            if aggregated:
+                                start_p = min(
+                                    r.get("period_start") or "" for r in aggregated
+                                )
+                                end_p = max(
+                                    r.get("period_end") or "" for r in aggregated
+                                )
+                            else:
+                                start_p = end_p = None
+                            create_donut_plot(
+                                aggregated,
+                                column,
+                                start=start_p or None,
+                                end=end_p or None,
+                            )
                 else:
                     cols = [
                         "first_name",
@@ -523,9 +536,23 @@ def main(argv: list[str] | None = None) -> int:
                         columns=cols,
                     )
                     if args.plot:
-                        kind, column, cutoff = _parse_plot_spec(args.plot)
+                        kind, column = _parse_plot_spec(args.plot)
                         if kind == "donut":
-                            create_donut_plot(aggregated, column, cutoff)
+                            if aggregated:
+                                start_p = min(
+                                    r.get("period_start") or "" for r in aggregated
+                                )
+                                end_p = max(
+                                    r.get("period_end") or "" for r in aggregated
+                                )
+                            else:
+                                start_p = end_p = None
+                            create_donut_plot(
+                                aggregated,
+                                column,
+                                start=start_p or None,
+                                end=end_p or None,
+                            )
         elif args.report_cmd == "list":
             entries = list_months()
             pprint(entries)
