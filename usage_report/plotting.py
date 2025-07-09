@@ -44,21 +44,37 @@ def create_donut_plot(
     max_val = data[-1][1]
     threshold = max_val * 1.05
     other_total = 0.0
-    labels: list[str] = []
-    values: list[float] = []
+    keep: list[tuple[str, float]] = []
 
     for label, val in data:
         if other_total <= threshold - val:
             other_total += val
         else:
-            labels.append(label)
-            values.append(val)
+            keep.append((label, val))
 
     if other_total > 0:
-        labels.append("Others")
-        values.append(other_total)
+        keep.append(("Others", other_total))
 
-    colors = matplotlib.cm.tab20.colors
+    # sort "Others" to the end, remaining segments by size (largest first)
+    others_pair = next(((l, v) for l, v in keep if l == "Others"), None)
+    keep = [(l, v) for l, v in keep if l != "Others"]
+    keep.sort(key=lambda t: t[1], reverse=True)
+    if others_pair:
+        keep.append(others_pair)
+
+    labels = [l for l, _ in keep]
+    values = [v for _, v in keep]
+
+    palette = list(matplotlib.cm.tab20.colors)
+    color_map: dict[str, str] = {}
+    for idx, (label, _) in enumerate(keep):
+        if label == "Others":
+            color_map[label] = "gray"
+        else:
+            color_map[label] = palette[idx % len(palette)]
+
+    colors = [color_map[l] for l in labels]
+
     plt.figure(figsize=(10, 10))
     wedges, texts, autotexts = plt.pie(
         values,
