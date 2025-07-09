@@ -34,6 +34,8 @@ def create_donut_plot(
             continue
         val = float(row.get(column, 0) or 0)
         label = str(row.get("ai_c_group") or row.get("kennung") or "")
+        if label:
+            label = label.replace("-ai-c", "")
         data.append((label, val))
 
     if not data:
@@ -88,15 +90,15 @@ def create_donut_plot(
     centre_circle = plt.Circle((0, 0), 0.70, fc="white")
     plt.gca().add_artist(centre_circle)
     for text in texts:
-        text.set(size=10)
+        text.set(size=12)
     for autotext in autotexts:
-        autotext.set(size=9, weight="bold")
+        autotext.set(size=11, weight="bold")
     if title is None:
         period = f"{start or '?'} - {end or '?'}" if start or end else None
         title = f"{column.replace('_', ' ').title()} by Group"
         if period:
             title += f" ({period})"
-    plt.title(title, fontsize=14, pad=40)
+    plt.title(title, fontsize=18, pad=40)
     plt.axis("equal")
     plt.savefig("usage_plot.png")
     plt.close()
