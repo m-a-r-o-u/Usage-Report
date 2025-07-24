@@ -17,6 +17,7 @@ from .report import (
     enrich_report_rows,
     write_report_csv,
     aggregate_rows,
+    sum_rows,
 )
 from .plotting import create_donut_plot
 
@@ -186,7 +187,7 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         "--aggregate",
         nargs="?",
         const="user",
-        choices=["user", "groups"],
+        choices=["user", "groups", "all"],
         help="Aggregate cached months (optionally by group)",
     )
     active_parser.add_argument(
@@ -261,7 +262,7 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
         "--aggregate",
         nargs="?",
         const="user",
-        choices=["user", "groups"],
+        choices=["user", "groups", "all"],
         help="Aggregate cached months (optionally by group)",
     )
 
@@ -399,7 +400,14 @@ def main(argv: list[str] | None = None) -> int:
                         else:
                             rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
                             if args.aggregate:
-                                agg_rows.extend(rows)
+                                if args.aggregate == "all":
+                                    ag = sum_rows(rows, partitions=args.partitions)
+                                    ag["month"] = mon
+                                    ag["period_start"] = m_start
+                                    ag["period_end"] = m_end
+                                    agg_rows.append(ag)
+                                else:
+                                    agg_rows.extend(rows)
                             else:
                                 part_val = ",".join(sorted(args.partitions or ["*"]))
                                 show_rows = [r | {"partition": part_val} for r in rows]
@@ -438,6 +446,15 @@ def main(argv: list[str] | None = None) -> int:
                             rows,
                             partitions=args.partitions,
                         )
+                        if args.aggregate:
+                            if args.aggregate == "all":
+                                ag = sum_rows(rows, partitions=args.partitions)
+                                ag["month"] = mon
+                                ag["period_start"] = m_start
+                                ag["period_end"] = m_end
+                                agg_rows.append(ag)
+                            else:
+                                agg_rows.extend(rows)
             else:
                 rows = create_active_reports(
                     start,
@@ -471,16 +488,21 @@ def main(argv: list[str] | None = None) -> int:
                         rows,
                         partitions=args.partitions,
                     )
+                if args.aggregate:
+                    if args.aggregate == "all":
+                        ag = sum_rows(rows, partitions=args.partitions)
+                        ag["period_start"] = start
+                        ag["period_end"] = end
+                        ag["month"] = args.month or ""
+                        agg_rows.append(ag)
+                    else:
+                        agg_rows.extend(rows)
 
             if args.aggregate and agg_rows:
-                aggregated = aggregate_rows(
-                    agg_rows,
-                    by_group=(args.aggregate == "groups"),
-                    partitions=args.partitions,
-                )
-                if args.aggregate == "groups":
+                if args.aggregate == "all":
+                    aggregated = agg_rows
                     cols = [
-                        "ai_c_group",
+                        "month",
                         "partition",
                         "cpu_hours",
                         "gpu_hours",
@@ -495,40 +517,39 @@ def main(argv: list[str] | None = None) -> int:
                         reverse=(args.desc or args.sortby == "gpu_hours"),
                         columns=cols,
                     )
-                    if args.plot:
-                        kind, column = _parse_plot_spec(args.plot)
-                        if kind == "donut":
-                            if aggregated:
-                                start_p = min(
-                                    r.get("period_start") or "" for r in aggregated
-                                )
-                                end_p = max(
-                                    r.get("period_end") or "" for r in aggregated
-                                )
-                            else:
-                                start_p = end_p = None
-                            create_donut_plot(
-                                aggregated,
-                                column,
-                                start=start_p or None,
-                                end=end_p or None,
-                            )
                 else:
-                    cols = [
-                        "first_name",
-                        "last_name",
-                        "email",
-                        "kennung",
-                        "projekt",
-                        "ai_c_group",
-                        "cpu_hours",
-                        "gpu_hours",
-                        "ram_gb_hours",
-                        "timestamp",
-                        "period_start",
-                        "period_end",
-                        "partition",
-                    ]
+                    aggregated = aggregate_rows(
+                        agg_rows,
+                        by_group=(args.aggregate == "groups"),
+                        partitions=args.partitions,
+                    )
+                    if args.aggregate == "groups":
+                        cols = [
+                            "ai_c_group",
+                            "partition",
+                            "cpu_hours",
+                            "gpu_hours",
+                            "ram_gb_hours",
+                            "timestamp",
+                            "period_start",
+                            "period_end",
+                        ]
+                    else:
+                        cols = [
+                            "first_name",
+                            "last_name",
+                            "email",
+                            "kennung",
+                            "projekt",
+                            "ai_c_group",
+                            "cpu_hours",
+                            "gpu_hours",
+                            "ram_gb_hours",
+                            "timestamp",
+                            "period_start",
+                            "period_end",
+                            "partition",
+                        ]
                     print_usage_table(
                         aggregated,
                         sort_key=args.sortby,
