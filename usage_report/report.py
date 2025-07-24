@@ -274,10 +274,47 @@ def aggregate_rows(
     return list(aggr.values())
 
 
+def sum_rows(
+    rows: Iterable[dict[str, object]],
+    *,
+    partitions: Iterable[str] | None = None,
+) -> dict[str, object]:
+    """Return total usage metrics aggregated over all *rows*."""
+
+    part_str = ",".join(sorted(partitions or ["*"]))
+    total = {
+        "cpu_hours": 0.0,
+        "gpu_hours": 0.0,
+        "ram_gb_hours": 0.0,
+        "timestamp": "",
+        "period_start": None,
+        "period_end": None,
+        "partition": part_str,
+    }
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        total["cpu_hours"] += float(row.get("cpu_hours", 0.0))
+        total["gpu_hours"] += float(row.get("gpu_hours", 0.0))
+        total["ram_gb_hours"] += float(row.get("ram_gb_hours", 0.0))
+
+        start = str(row.get("period_start")) if row.get("period_start") else ""
+        end = str(row.get("period_end")) if row.get("period_end") else ""
+        if total["period_start"] is None or (start and start < total["period_start"]):
+            total["period_start"] = start
+        if total["period_end"] is None or (end and end > total["period_end"]):
+            total["period_end"] = end
+
+    total["period_start"] = total["period_start"] or ""
+    total["period_end"] = total["period_end"] or ""
+    return total
+
+
 __all__ = [
     "create_report",
     "create_active_reports",
     "enrich_report_rows",
     "write_report_csv",
     "aggregate_rows",
+    "sum_rows",
 ]

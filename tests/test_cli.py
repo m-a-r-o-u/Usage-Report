@@ -213,11 +213,27 @@ def test_parse_multi_month_aggregate():
         "--month",
         "2025-05,2025-06",
         "--aggregate",
-        "group",
+        "groups",
     ])
 
     assert args.month == "2025-05,2025-06"
-    assert args.aggregate == "group"
+    assert args.aggregate == "groups"
+
+
+def test_parse_multi_month_aggregate_all():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "active",
+        "--month",
+        "2025-05,2025-06",
+        "--aggregate",
+        "all",
+    ])
+
+    assert args.month == "2025-05,2025-06"
+    assert args.aggregate == "all"
 
 
 def test_active_aggregate(monkeypatch):
@@ -268,6 +284,62 @@ def test_active_aggregate(monkeypatch):
     assert row["partition"] == "*"
 
 
+def test_active_aggregate_all(monkeypatch):
+    from usage_report import cli
+
+    months = {
+        "2025-05": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 1.0,
+                "gpu_hours": 1.0,
+                "ram_gb_hours": 1.0,
+                "timestamp": "t1",
+                "period_start": "2025-05-01",
+                "period_end": "2025-05-31",
+            }
+        ],
+        "2025-06": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 2.0,
+                "gpu_hours": 0.5,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t2",
+                "period_start": "2025-06-01",
+                "period_end": "2025-06-30",
+            }
+        ],
+    }
+
+    monkeypatch.setattr(cli, "load_month", lambda m, partitions=None: months[m])
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+
+    captured = {}
+
+    def fake_print(rows, *a, **k):
+        captured["rows"] = rows
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main([
+        "report",
+        "active",
+        "--month",
+        "2025-05,2025-06",
+        "--aggregate",
+        "all",
+    ])
+
+    assert len(captured["rows"]) == 2
+    assert captured["rows"][0]["month"] == "2025-05"
+    assert captured["rows"][0]["cpu_hours"] == 1.0
+    assert captured["rows"][1]["month"] == "2025-06"
+    assert captured["rows"][1]["gpu_hours"] == 0.5
+
+
 def test_active_aggregate_group(monkeypatch):
     from usage_report import cli
     sample = [
@@ -296,7 +368,7 @@ def test_active_aggregate_group(monkeypatch):
     monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
     monkeypatch.setattr(cli, "print_usage_table", lambda *a, **k: None)
 
-    cli.main(["report", "active", "--month", "2025-06", "--aggregate", "group"])
+    cli.main(["report", "active", "--month", "2025-06", "--aggregate", "groups"])
 
     assert called.get("group") is True
 
@@ -337,7 +409,7 @@ def test_active_aggregate_group_sort(monkeypatch):
         "--month",
         "2025-06",
         "--aggregate",
-        "group",
+        "groups",
         "--sortby",
         "gpu_hours",
     ])
@@ -415,7 +487,7 @@ def test_parse_plot_option():
         "--month",
         "2025-06",
         "--aggregate",
-        "group",
+        "groups",
         "--plot",
         "donut,gpu_hours",
     ])
@@ -461,7 +533,7 @@ def test_active_plot_call(monkeypatch):
         "--month",
         "2025-06",
         "--aggregate",
-        "group",
+        "groups",
         "--plot",
         "donut,gpu_hours",
     ])

@@ -7,6 +7,7 @@ from .report import (
     create_active_reports,
     write_report_csv,
     aggregate_rows,
+    sum_rows,
 )
 from .sreport import fetch_active_usage, parse_sreport_output
 from .database import store_month, load_month, list_months
@@ -24,6 +25,7 @@ __all__ = [
     "create_active_reports",
     "write_report_csv",
     "aggregate_rows",
+    "sum_rows",
     "create_donut_plot",
     "list_user_groups",
     "fetch_active_usage",
