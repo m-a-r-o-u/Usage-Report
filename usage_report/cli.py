@@ -186,7 +186,7 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         "--aggregate",
         nargs="?",
         const="user",
-        choices=["user", "group"],
+        choices=["user", "groups"],
         help="Aggregate cached months (optionally by group)",
     )
     active_parser.add_argument(
@@ -261,7 +261,7 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
         "--aggregate",
         nargs="?",
         const="user",
-        choices=["user", "group"],
+        choices=["user", "groups"],
         help="Aggregate cached months (optionally by group)",
     )
 
@@ -475,10 +475,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.aggregate and agg_rows:
                 aggregated = aggregate_rows(
                     agg_rows,
-                    by_group=(args.aggregate == "group"),
+                    by_group=(args.aggregate == "groups"),
                     partitions=args.partitions,
                 )
-                if args.aggregate == "group":
+                if args.aggregate == "groups":
                     cols = [
                         "ai_c_group",
                         "partition",

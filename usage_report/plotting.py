@@ -90,7 +90,7 @@ def create_donut_plot(
     centre_circle = plt.Circle((0, 0), 0.70, fc="white")
     plt.gca().add_artist(centre_circle)
     for text in texts:
-        text.set(size=12)
+        text.set(size=14)
     for autotext in autotexts:
         autotext.set(size=11, weight="bold")
     if title is None:
@@ -98,7 +98,7 @@ def create_donut_plot(
         title = f"{column.replace('_', ' ').title()} by Group"
         if period:
             title += f" ({period})"
-    plt.title(title, fontsize=18, pad=40)
+    plt.title(title, fontsize=20, pad=40)
     plt.axis("equal")
     plt.savefig("usage_plot.png")
     plt.close()
