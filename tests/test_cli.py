@@ -236,6 +236,23 @@ def test_parse_multi_month_aggregate_all():
     assert args.aggregate == "all"
 
 
+def test_parse_ignore_user_list():
+    from usage_report.cli import parse_args
+
+    args = parse_args([
+        "report",
+        "active",
+        "--month",
+        "2025-06",
+        "--aggregate",
+        "all",
+        "--ignore_user",
+        "u1,u2",
+    ])
+
+    assert args.ignore_user == ["u1", "u2"]
+
+
 def test_active_aggregate(monkeypatch):
     from usage_report import cli
 
@@ -358,7 +375,7 @@ def test_active_aggregate_group(monkeypatch):
     monkeypatch.setattr(cli, "load_month", lambda *a, **k: sample)
     called = {}
 
-    def fake_aggregate(rows, *, by_group, partitions=None):
+    def fake_aggregate(rows, *, by_group, partitions=None, **kwargs):
         called["group"] = by_group
         return []
 
@@ -541,3 +558,79 @@ def test_active_plot_call(monkeypatch):
     assert called["column"] == "gpu_hours"
     assert called["start"] == "p1"
     assert called["end"] == "p2"
+
+
+def test_active_aggregate_all_ignore_user(monkeypatch):
+    from usage_report import cli
+
+    months = {
+        "2025-05": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 0.0,
+                "gpu_hours": 1.0,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t1",
+                "period_start": "2025-05-01",
+                "period_end": "2025-05-31",
+            },
+            {
+                "kennung": "u2",
+                "cpu_hours": 0.0,
+                "gpu_hours": 2.0,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t1",
+                "period_start": "2025-05-01",
+                "period_end": "2025-05-31",
+            },
+        ],
+        "2025-06": [
+            {
+                "kennung": "u1",
+                "cpu_hours": 0.0,
+                "gpu_hours": 3.0,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t2",
+                "period_start": "2025-06-01",
+                "period_end": "2025-06-30",
+            },
+            {
+                "kennung": "u2",
+                "cpu_hours": 0.0,
+                "gpu_hours": 4.0,
+                "ram_gb_hours": 0.0,
+                "timestamp": "t2",
+                "period_start": "2025-06-01",
+                "period_end": "2025-06-30",
+            },
+        ],
+    }
+
+    monkeypatch.setattr(cli, "load_month", lambda m, partitions=None: months[m])
+    monkeypatch.setattr(cli, "create_active_reports", lambda *a, **k: [])
+    monkeypatch.setattr(cli, "store_month", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "enrich_report_rows", lambda r, **k: r)
+
+    captured = {}
+
+    def fake_print(rows, *a, **k):
+        captured["rows"] = rows
+
+    monkeypatch.setattr(cli, "print_usage_table", fake_print)
+
+    cli.main([
+        "report",
+        "active",
+        "--month",
+        "2025-05,2025-06",
+        "--aggregate",
+        "all",
+        "--ignore_user",
+        "u1",
+    ])
+
+    assert len(captured["rows"]) == 2
+    may = next(r for r in captured["rows"] if r["month"] == "2025-05")
+    jun = next(r for r in captured["rows"] if r["month"] == "2025-06")
+    assert may["gpu_hours"] == 2.0
+    assert jun["gpu_hours"] == 4.0

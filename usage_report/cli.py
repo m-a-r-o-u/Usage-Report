@@ -196,6 +196,11 @@ def _add_report_parser(sub: argparse._SubParsersAction) -> None:
         help="Create a plot from aggregated data (e.g. donut,gpu_hours)",
     )
     active_parser.add_argument(
+        "--ignore_user",
+        dest="ignore_user",
+        help="Comma separated list of user IDs to ignore when aggregating",
+    )
+    active_parser.add_argument(
         "--sortby",
         dest="sortby",
         default="gpu_hours",
@@ -293,6 +298,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_report_parser(sub)
     _add_active_parser(sub)
     args = parser.parse_args(argv_list)
+    if getattr(args, "ignore_user", None):
+        args.ignore_user = [
+            u.strip() for u in str(args.ignore_user).split(",") if u.strip()
+        ]
     if debug:
         args.debug = True
     return args
@@ -401,7 +410,11 @@ def main(argv: list[str] | None = None) -> int:
                             rows = enrich_report_rows(rows, netrc_file=args.netrc_file)
                             if args.aggregate:
                                 if args.aggregate == "all":
-                                    ag = sum_rows(rows, partitions=args.partitions)
+                                    ag = sum_rows(
+                                        rows,
+                                        partitions=args.partitions,
+                                        ignore_users=args.ignore_user,
+                                    )
                                     ag["month"] = mon
                                     ag["period_start"] = m_start
                                     ag["period_end"] = m_end
@@ -448,7 +461,11 @@ def main(argv: list[str] | None = None) -> int:
                         )
                         if args.aggregate:
                             if args.aggregate == "all":
-                                ag = sum_rows(rows, partitions=args.partitions)
+                                ag = sum_rows(
+                                    rows,
+                                    partitions=args.partitions,
+                                    ignore_users=args.ignore_user,
+                                )
                                 ag["month"] = mon
                                 ag["period_start"] = m_start
                                 ag["period_end"] = m_end
@@ -490,7 +507,11 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 if args.aggregate:
                     if args.aggregate == "all":
-                        ag = sum_rows(rows, partitions=args.partitions)
+                        ag = sum_rows(
+                            rows,
+                            partitions=args.partitions,
+                            ignore_users=args.ignore_user,
+                        )
                         ag["period_start"] = start
                         ag["period_end"] = end
                         ag["month"] = args.month or ""
@@ -522,6 +543,7 @@ def main(argv: list[str] | None = None) -> int:
                         agg_rows,
                         by_group=(args.aggregate == "groups"),
                         partitions=args.partitions,
+                        ignore_users=args.ignore_user,
                     )
                     if args.aggregate == "groups":
                         cols = [
