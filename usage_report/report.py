@@ -230,13 +230,17 @@ def aggregate_rows(
     *,
     by_group: bool = False,
     partitions: Iterable[str] | None = None,
+    ignore_users: Iterable[str] | None = None,
 ) -> list[dict[str, object]]:
     """Return ``rows`` aggregated either by user or by ``ai_c_group``."""
 
     part_str = ",".join(sorted(partitions or ["*"]))
     aggr: dict[str, dict[str, object]] = {}
+    ignore = set(ignore_users or [])
     for row in rows:
         if not isinstance(row, dict):
+            continue
+        if row.get("kennung") in ignore:
             continue
         groups = row.get("ai_c_group", "")
         keys = [row.get("kennung")] if not by_group else (groups.split("|") if groups else [""])
@@ -278,6 +282,7 @@ def sum_rows(
     rows: Iterable[dict[str, object]],
     *,
     partitions: Iterable[str] | None = None,
+    ignore_users: Iterable[str] | None = None,
 ) -> dict[str, object]:
     """Return total usage metrics aggregated over all *rows*."""
 
@@ -291,8 +296,11 @@ def sum_rows(
         "period_end": None,
         "partition": part_str,
     }
+    ignore = set(ignore_users or [])
     for row in rows:
         if not isinstance(row, dict):
+            continue
+        if row.get("kennung") in ignore:
             continue
         total["cpu_hours"] += float(row.get("cpu_hours", 0.0))
         total["gpu_hours"] += float(row.get("gpu_hours", 0.0))
