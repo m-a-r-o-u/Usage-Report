@@ -100,6 +100,109 @@ def test_active_sort_parse():
     assert args.desc is True
 
 
+def test_active_user_list_parse():
+    from usage_report.cli import parse_args
+
+    args = parse_args(
+        [
+            "active",
+            "--month",
+            "2025-06",
+            "--user-list",
+            "user1, user2",
+            "-u",
+            "user3",
+            "-u",
+            "user1",
+        ]
+    )
+    assert args.command == "active"
+    assert args.active_users == ["user3", "user1", "user2"]
+
+
+def test_active_user_list_output(monkeypatch, capsys):
+    from usage_report import cli
+
+    captured = {}
+
+    def fake_fetch(start, end, active_users=None, partitions=None):
+        captured["active_users"] = active_users
+        captured["partitions"] = partitions
+        return {
+            "partitions": ["gpu"],
+            "user1": 2.0,
+            "user2": 3.0,
+            "user3": 5.0,
+        }
+
+    monkeypatch.setattr(cli, "fetch_active_usage", fake_fetch)
+
+    cli.main(["active", "--month", "2025-06", "--user-list", "user1,user2"])
+
+    assert captured.get("active_users") == ["user1", "user2"]
+    out = capsys.readouterr().out
+    assert "'user': 'user1'" in out
+    assert "'user': 'user2'" in out
+    assert "'group_hours': 5.0" in out
+
+
+def test_slurm_user_list_parse():
+    from usage_report.cli import parse_args
+
+    args = parse_args(["slurm", "user1,user2", "-S", "2025-10-01"])
+    assert args.command == "slurm"
+    assert args.users == ["user1", "user2"]
+
+
+def test_slurm_user_multi_token_parse():
+    from usage_report.cli import parse_args
+
+    args = parse_args(["slurm", "user1", "user2,user3", "-S", "2025-10-01"])
+    assert args.users == ["user1", "user2", "user3"]
+
+
+def test_slurm_multi_user_output(monkeypatch, capsys):
+    from usage_report import cli
+
+    data = {
+        "user1": {"cpu_hours": 1.0, "gpu_hours": 2.0, "ram_gb_hours": 3.0},
+        "user2": {"cpu_hours": 4.0, "gpu_hours": 5.0, "ram_gb_hours": 6.0},
+    }
+    calls = []
+
+    def fake_fetch(user, start, end, partitions=None):
+        calls.append((user, start, end, partitions))
+        return data[user]
+
+    monkeypatch.setattr(cli, "fetch_usage", fake_fetch)
+
+    cli.main(["slurm", "user1,user2", "-S", "2025-10-01"])
+
+    assert calls == [
+        ("user1", "2025-10-01", None, None),
+        ("user2", "2025-10-01", None, None),
+    ]
+    out = capsys.readouterr().out
+    assert "'user': 'user1'" in out
+    assert "'user': 'user2'" in out
+    assert "'group_usage': {'cpu_hours': 5.0, 'gpu_hours': 7.0, 'ram_gb_hours': 9.0}" in out
+
+
+def test_slurm_single_user_passthrough(monkeypatch, capsys):
+    from usage_report import cli
+
+    def fake_fetch(user, start, end, partitions=None):
+        return {"cpu_hours": 1.0, "gpu_hours": 0.5, "ram_gb_hours": 0.0}
+
+    monkeypatch.setattr(cli, "fetch_usage", fake_fetch)
+
+    cli.main(["slurm", "user1", "-S", "2025-10-01"])
+
+    out = capsys.readouterr().out
+    assert "'cpu_hours': 1.0" in out
+    assert "group_usage" not in out
+
+
 def test_print_usage_table_sort(capsys):
     from usage_report.cli import print_usage_table
 
