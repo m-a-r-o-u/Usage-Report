@@ -129,7 +129,11 @@ def _add_sim_parser(sub: argparse._SubParsersAction) -> None:
 
 def _add_slurm_parser(sub: argparse._SubParsersAction) -> None:
     slurm_parser = sub.add_parser("slurm", help="Calculate Slurm usage")
-    slurm_parser.add_argument("user_id", help="LRZ user identifier")
+    slurm_parser.add_argument(
+        "user_specs",
+        nargs="+",
+        help="LRZ user identifier(s); accepts comma separated values",
+    )
     grp = slurm_parser.add_mutually_exclusive_group(required=True)
     grp.add_argument("-S", "--start", dest="start", help="Start date YYYY-MM-DD")
     grp.add_argument("--month", help="Month YYYY-MM")
@@ -257,6 +261,11 @@ def _add_active_parser(sub: argparse._SubParsersAction) -> None:
         help="Active user identifier (can be used multiple times)",
     )
     active_parser.add_argument(
+        "--user-list",
+        dest="active_user_list",
+        help="Comma separated list of active user identifiers",
+    )
+    active_parser.add_argument(
         "-p",
         "--partition",
         dest="partitions",
@@ -302,6 +311,41 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.ignore_user = [
             u.strip() for u in str(args.ignore_user).split(",") if u.strip()
         ]
+    if getattr(args, "command", None) == "slurm":
+        raw_specs = getattr(args, "user_specs", [])
+        users: list[str] = []
+        for spec in raw_specs:
+            parts = [part.strip() for part in spec.split(",") if part.strip()]
+            users.extend(parts)
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for user in users:
+            if user not in seen:
+                seen.add(user)
+                deduped.append(user)
+        args.users = deduped
+    if getattr(args, "active_user_list", None):
+        parsed_users = [
+            u.strip()
+            for u in str(args.active_user_list).split(",")
+            if u.strip()
+        ]
+        combined = list(args.active_users or []) + parsed_users
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for user in combined:
+            if user not in seen:
+                seen.add(user)
+                deduped.append(user)
+        args.active_users = deduped or None
+    elif getattr(args, "active_users", None):
+        seen: set[str] = set()
+        deduped = []
+        for user in args.active_users:
+            if user not in seen:
+                seen.add(user)
+                deduped.append(user)
+        args.active_users = deduped or None
     if debug:
         args.debug = True
     return args
@@ -327,8 +371,23 @@ def main(argv: list[str] | None = None) -> int:
                 print("--end cannot be used with --month", file=sys.stderr)
                 return 1
             start, end = expand_month(args.month)
-        usage = fetch_usage(args.user_id, start, end, partitions=args.partitions)
-        pprint(usage)
+        users = getattr(args, "users", [])
+        if not users:
+            print("At least one user must be specified", file=sys.stderr)
+            return 1
+        if len(users) == 1:
+            usage = fetch_usage(users[0], start, end, partitions=args.partitions)
+            pprint(usage)
+        else:
+            per_user: list[dict[str, object]] = []
+            totals = {"cpu_hours": 0.0, "gpu_hours": 0.0, "ram_gb_hours": 0.0}
+            for user in users:
+                usage = fetch_usage(user, start, end, partitions=args.partitions)
+                per_user.append({"user": user, **usage})
+                for key in totals:
+                    totals[key] += float(usage.get(key, 0.0))
+            result = {"users": per_user, "group_usage": totals}
+            pprint(result)
     elif args.command == "active":
         start = args.start
         end = args.end
@@ -338,7 +397,26 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             start, end = expand_month(args.month)
         usage = fetch_active_usage(start, end, active_users=args.active_users, partitions=args.partitions)
-        pprint(usage)
+        if args.active_users:
+            partitions = usage.get("partitions") if isinstance(usage, dict) else []
+            users_usage = []
+            for user in args.active_users:
+                value = 0.0
+                if isinstance(usage, dict):
+                    try:
+                        value = float(usage.get(user, 0.0))
+                    except (TypeError, ValueError):
+                        value = 0.0
+                users_usage.append({"user": user, "hours": value})
+            group_hours = sum(item["hours"] for item in users_usage)
+            result = {
+                "partitions": partitions,
+                "users": users_usage,
+                "group_hours": group_hours,
+            }
+            pprint(result)
+        else:
+            pprint(usage)
     elif args.command == "report":
         if args.report_cmd == "user":
             start = args.start

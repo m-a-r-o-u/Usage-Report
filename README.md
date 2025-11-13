@@ -18,18 +18,20 @@ usage [--debug] <command> [options]
 usage sim <user_id> [--netrc-file PATH]
 
 # aggregate Slurm usage
-usage slurm <user_id> -S 2025-06-27 [-E 2025-06-30]
+usage slurm <user_id>[,<user_id>...] -S 2025-06-27 [-E 2025-06-30]
 # or entire month
-usage slurm <user_id> --month 2025-06
+usage slurm <user_id>[,<user_id>...] --month 2025-06
 # filter by partition (can be used multiple times, supports wildcards)
-usage slurm <user_id> --month 2025-06 \
+usage slurm <user_id>[,<user_id>...] --month 2025-06 \
     --partition lrz* --partition mcml*
 # quote wildcards to prevent shell expansion if needed
-# usage slurm <user_id> --month 2025-06 \
+# usage slurm <user_id>[,<user_id>...] --month 2025-06 \
 #     --partition 'lrz*' --partition 'mcml*'
 
 # cluster usage for active users
 usage report active -S 2025-06-27 [-E 2025-06-30] [--netrc-file PATH]
+# restrict to a group of users
+usage active --month 2025-06 --user-list user1,user2
 # show stored month with partition column ("*" means all partitions)
 usage report active --month 2025-06 --partition mcml*
 
